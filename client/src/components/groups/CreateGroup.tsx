@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Users, Search } from 'lucide-react';
-import { useFriendStore } from '@/store/friendStore';
-import { useGroupStore } from '@/store/groupStore';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState, useEffect } from "react";
+import { Users, Search } from "lucide-react";
+import { useFriendStore } from "@/store/friendStore";
+import { useGroupStore } from "@/store/groupStore";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -13,21 +13,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 // import axios from 'axios';
 
 // const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export default function CreateGroup() {
   const [isOpen, setIsOpen] = useState(false);
-  const [groupName, setGroupName] = useState('');
-  const [groupDescription, setGroupDescription] = useState('');
+  const [groupName, setGroupName] = useState("");
+  const [groupDescription, setGroupDescription] = useState("");
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { friends, getFriends } = useFriendStore();
   const { createGroup } = useGroupStore();
 
@@ -53,12 +53,12 @@ export default function CreateGroup() {
 
   const handleCreate = async () => {
     if (!groupName.trim()) {
-      setError('Group name is required');
+      setError("Group name is required");
       return;
     }
 
     if (selectedFriends.length === 0) {
-      setError('Please select at least one friend');
+      setError("Please select at least one friend");
       return;
     }
 
@@ -70,17 +70,18 @@ export default function CreateGroup() {
         name: groupName,
         description: groupDescription,
         members: selectedFriends,
+        type: "chat",
       });
 
-      toast.success('Group created!', {
+      toast.success("Group created!", {
         description: `"${groupName}" has been created successfully`,
       });
-      
+
       handleClose();
     } catch (err: any) {
-      const message = err.response?.data?.message || 'Failed to create group';
+      const message = err.response?.data?.message || "Failed to create group";
       setError(message);
-      toast.error('Failed to create group', {
+      toast.error("Failed to create group", {
         description: message,
       });
     } finally {
@@ -90,10 +91,10 @@ export default function CreateGroup() {
 
   const handleClose = () => {
     setIsOpen(false);
-    setGroupName('');
-    setGroupDescription('');
+    setGroupName("");
+    setGroupDescription("");
     setSelectedFriends([]);
-    setSearchQuery('');
+    setSearchQuery("");
     setError(null);
   };
 
@@ -189,7 +190,7 @@ export default function CreateGroup() {
                 ))
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  {searchQuery ? 'No friends found' : 'No friends yet'}
+                  {searchQuery ? "No friends found" : "No friends yet"}
                 </div>
               )}
             </div>
@@ -206,7 +207,7 @@ export default function CreateGroup() {
               Cancel
             </Button>
             <Button onClick={handleCreate} disabled={loading}>
-              {loading ? 'Creating...' : 'Create Group'}
+              {loading ? "Creating..." : "Create Group"}
             </Button>
           </DialogFooter>
         </DialogContent>

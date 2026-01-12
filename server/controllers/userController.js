@@ -1,4 +1,4 @@
-import User from '../models/User.js';
+import User from "../models/User.js";
 
 /**
  * @desc    Get all friends of current user
@@ -9,18 +9,21 @@ export const getAllUsers = async (req, res) => {
   try {
     // Get current user with populated friends
     const currentUser = await User.findById(req.user._id).populate(
-      'friends',
-      'name email avatar isOnline lastSeen'
+      "friends",
+      "name email avatar isOnline lastSeen"
     );
 
     let users = currentUser.friends || [];
 
     // Always add AI Bot to the list if not already there
     const aiBot = await User.findOne({ isAIBot: true }).select(
-      'name email avatar isOnline lastSeen bio isAIBot'
+      "name email avatar isOnline lastSeen bio isAIBot"
     );
 
-    if (aiBot && !users.find(u => u._id.toString() === aiBot._id.toString())) {
+    if (
+      aiBot &&
+      !users.find((u) => u._id.toString() === aiBot._id.toString())
+    ) {
       users = [aiBot, ...users];
     }
 
@@ -30,10 +33,10 @@ export const getAllUsers = async (req, res) => {
       users,
     });
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error("Get users error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get users',
+      message: "Failed to get users",
       error: error.message,
     });
   }
@@ -47,13 +50,13 @@ export const getAllUsers = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select(
-      'name email avatar isOnline lastSeen bio'
+      "name email avatar isOnline lastSeen bio"
     );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -62,10 +65,10 @@ export const getUserById = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error("Get user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get user',
+      message: "Failed to get user",
       error: error.message,
     });
   }
@@ -80,21 +83,21 @@ export const searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
 
-    if (!q || q.trim() === '') {
+    if (!q || q.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Search query is required',
+        message: "Search query is required",
       });
     }
 
     const users = await User.find({
       _id: { $ne: req.user._id },
       $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { email: { $regex: q, $options: 'i' } },
+        { name: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
       ],
     })
-      .select('name email avatar isOnline lastSeen')
+      .select("name email avatar isOnline lastSeen")
       .limit(10);
 
     res.status(200).json({
@@ -103,10 +106,10 @@ export const searchUsers = async (req, res) => {
       users,
     });
   } catch (error) {
-    console.error('Search users error:', error);
+    console.error("Search users error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to search users',
+      message: "Failed to search users",
       error: error.message,
     });
   }
@@ -115,16 +118,34 @@ export const searchUsers = async (req, res) => {
 // Get user profile
 export const getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId).select('-password');
-    
+    const user = await User.findById(req.params.userId).select("-password");
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
-    res.json(user);
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        bio: user.bio,
+        isOnline: user.isOnline,
+        lastSeen: user.lastSeen,
+        createdAt: user.createdAt,
+      },
+    });
   } catch (error) {
-    console.error('Error getting user profile:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error getting user profile:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
@@ -142,16 +163,14 @@ export const updateProfile = async (req, res) => {
       updateData.avatar = `/uploads/${req.file.filename}`;
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      updateData,
-      { new: true }
-    ).select('-password');
+    const user = await User.findByIdAndUpdate(req.user._id, updateData, {
+      new: true,
+    }).select("-password");
 
     res.json(user);
   } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -159,7 +178,7 @@ export const updateProfile = async (req, res) => {
 export const uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+      return res.status(400).json({ message: "No file uploaded" });
     }
 
     const avatarUrl = `/uploads/${req.file.filename}`;
@@ -168,11 +187,11 @@ export const uploadAvatar = async (req, res) => {
       req.user._id,
       { avatar: avatarUrl },
       { new: true }
-    ).select('-password');
+    ).select("-password");
 
     res.json({ avatar: avatarUrl, user });
   } catch (error) {
-    console.error('Error uploading avatar:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error uploading avatar:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };

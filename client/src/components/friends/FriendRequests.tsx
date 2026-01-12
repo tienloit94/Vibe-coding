@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { UserCheck, UserX, Loader2 } from 'lucide-react';
-import { useFriendStore } from '@/store/friendStore';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useEffect } from "react";
+import { UserCheck, UserX, Loader2 } from "lucide-react";
+import { useFriendStore } from "@/store/friendStore";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sheet,
   SheetContent,
@@ -10,25 +10,41 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet';
-import { Badge } from '@/components/ui/badge';
-import { Bell } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Bell } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 export default function FriendRequests() {
-  const { friendRequests, loading, getFriendRequests, acceptFriendRequest, rejectFriendRequest } =
-    useFriendStore();
+  const {
+    friendRequests,
+    loading,
+    getFriendRequests,
+    acceptFriendRequest,
+    rejectFriendRequest,
+  } = useFriendStore();
 
   useEffect(() => {
     getFriendRequests();
   }, [getFriendRequests]);
 
   const handleAccept = async (requestId: string) => {
-    await acceptFriendRequest(requestId);
+    try {
+      await acceptFriendRequest(requestId);
+      toast.success("Đã chấp nhận lời mời kết bạn!");
+    } catch (error) {
+      toast.error("Không thể chấp nhận lời mời kết bạn");
+    }
   };
 
   const handleReject = async (requestId: string) => {
-    await rejectFriendRequest(requestId);
+    try {
+      await rejectFriendRequest(requestId);
+      toast.success("Đã từ chối lời mời kết bạn");
+    } catch (error) {
+      toast.error("Không thể từ chối lời mời kết bạn");
+    }
   };
 
   return (
@@ -53,8 +69,10 @@ export default function FriendRequests() {
           <SheetTitle>Friend Requests</SheetTitle>
           <SheetDescription>
             {friendRequests.length === 0
-              ? 'No pending requests'
-              : `You have ${friendRequests.length} pending request${friendRequests.length > 1 ? 's' : ''}`}
+              ? "No pending requests"
+              : `You have ${friendRequests.length} pending request${
+                  friendRequests.length > 1 ? "s" : ""
+                }`}
           </SheetDescription>
         </SheetHeader>
 
@@ -71,7 +89,10 @@ export default function FriendRequests() {
               >
                 <div className="flex items-start gap-3">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={request.sender.avatar} alt={request.sender.name} />
+                    <AvatarImage
+                      src={request.sender.avatar}
+                      alt={request.sender.name}
+                    />
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
                       {request.sender.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -119,7 +140,9 @@ export default function FriendRequests() {
             <div className="text-center py-12 text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>No friend requests</p>
-              <p className="text-sm mt-1">When someone sends you a request, it will appear here</p>
+              <p className="text-sm mt-1">
+                When someone sends you a request, it will appear here
+              </p>
             </div>
           )}
         </div>

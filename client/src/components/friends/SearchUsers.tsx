@@ -1,22 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
-import { Search, UserPlus, X, Loader2 } from 'lucide-react';
-import { useFriendStore } from '@/store/friendStore';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, UserPlus, X, Loader2, User as UserIcon } from "lucide-react";
+import { useFriendStore } from "@/store/friendStore";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 
 export default function SearchUsers() {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const { searchResults, loading, searchUsers, sendFriendRequest, clearSearchResults } =
-    useFriendStore();
+  const [query, setQuery] = useState("");
+  const {
+    searchResults,
+    loading,
+    searchUsers,
+    sendFriendRequest,
+    clearSearchResults,
+  } = useFriendStore();
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
@@ -25,7 +32,7 @@ export default function SearchUsers() {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
-      
+
       searchTimeoutRef.current = setTimeout(() => {
         searchUsers(query);
       }, 300);
@@ -44,9 +51,14 @@ export default function SearchUsers() {
     await sendFriendRequest(userId);
   };
 
+  const handleViewProfile = (userId: string) => {
+    navigate(`/profile/${userId}`);
+    handleClose();
+  };
+
   const handleClose = () => {
     setIsOpen(false);
-    setQuery('');
+    setQuery("");
     clearSearchResults();
   };
 
@@ -83,7 +95,7 @@ export default function SearchUsers() {
               />
               {query && (
                 <button
-                  onClick={() => setQuery('')}
+                  onClick={() => setQuery("")}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
@@ -116,14 +128,25 @@ export default function SearchUsers() {
                       </p>
                     </div>
 
-                    <Button
-                      size="sm"
-                      onClick={() => handleSendRequest(user._id)}
-                      className="gap-2"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      Add
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewProfile(user._id)}
+                        className="gap-2"
+                      >
+                        <UserIcon className="h-4 w-4" />
+                        <span className="hidden sm:inline">Xem</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleSendRequest(user._id)}
+                        className="gap-2"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        <span className="hidden sm:inline">Kết bạn</span>
+                      </Button>
+                    </div>
                   </div>
                 ))
               ) : query.trim() ? (

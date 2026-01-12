@@ -1,5 +1,5 @@
-import FriendRequest from '../models/FriendRequest.js';
-import User from '../models/User.js';
+import FriendRequest from "../models/FriendRequest.js";
+import User from "../models/User.js";
 
 /**
  * @desc    Send friend request
@@ -14,7 +14,7 @@ export const sendFriendRequest = async (req, res) => {
     if (userId === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot send friend request to yourself',
+        message: "Cannot send friend request to yourself",
       });
     }
 
@@ -23,7 +23,7 @@ export const sendFriendRequest = async (req, res) => {
     if (!targetUser) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -31,7 +31,7 @@ export const sendFriendRequest = async (req, res) => {
     if (req.user.friends.includes(userId)) {
       return res.status(400).json({
         success: false,
-        message: 'Already friends with this user',
+        message: "Already friends with this user",
       });
     }
 
@@ -46,7 +46,7 @@ export const sendFriendRequest = async (req, res) => {
     if (existingRequest) {
       return res.status(400).json({
         success: false,
-        message: 'Friend request already exists',
+        message: "Friend request already exists",
       });
     }
 
@@ -56,17 +56,22 @@ export const sendFriendRequest = async (req, res) => {
       receiver: userId,
     });
 
-    await friendRequest.populate('sender', 'name email avatar');
-    await friendRequest.populate('receiver', 'name email avatar');
+    await friendRequest.populate("sender", "name email avatar");
+    await friendRequest.populate("receiver", "name email avatar");
 
     // Emit socket event to receiver
-    const io = req.app.get('io');
-    const connectedUsers = req.app.get('connectedUsers');
+    const io = req.app.get("io");
+    const connectedUsers = req.app.get("connectedUsers");
     if (io && connectedUsers) {
       const receiverSocketId = connectedUsers.get(userId);
-      console.log('🔔 Sending friend request notification to:', userId, 'socketId:', receiverSocketId);
+      console.log(
+        "🔔 Sending friend request notification to:",
+        userId,
+        "socketId:",
+        receiverSocketId
+      );
       if (receiverSocketId) {
-        io.to(receiverSocketId).emit('friend-request-received', {
+        io.to(receiverSocketId).emit("friend-request-received", {
           sender: {
             _id: req.user._id,
             name: req.user.name,
@@ -75,22 +80,22 @@ export const sendFriendRequest = async (req, res) => {
           },
           timestamp: new Date(),
         });
-        console.log('✅ Friend request notification sent');
+        console.log("✅ Friend request notification sent");
       } else {
-        console.log('⚠️ Receiver is offline');
+        console.log("⚠️ Receiver is offline");
       }
     }
 
     res.status(201).json({
       success: true,
-      message: 'Friend request sent',
+      message: "Friend request sent",
       friendRequest,
     });
   } catch (error) {
-    console.error('Send friend request error:', error);
+    console.error("Send friend request error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to send friend request',
+      message: "Failed to send friend request",
       error: error.message,
     });
   }
@@ -105,9 +110,9 @@ export const getFriendRequests = async (req, res) => {
   try {
     const requests = await FriendRequest.find({
       receiver: req.user._id,
-      status: 'pending',
+      status: "pending",
     })
-      .populate('sender', 'name email avatar isOnline')
+      .populate("sender", "name email avatar isOnline")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -116,10 +121,10 @@ export const getFriendRequests = async (req, res) => {
       requests,
     });
   } catch (error) {
-    console.error('Get friend requests error:', error);
+    console.error("Get friend requests error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get friend requests',
+      message: "Failed to get friend requests",
       error: error.message,
     });
   }
@@ -139,7 +144,7 @@ export const acceptFriendRequest = async (req, res) => {
     if (!friendRequest) {
       return res.status(404).json({
         success: false,
-        message: 'Friend request not found',
+        message: "Friend request not found",
       });
     }
 
@@ -147,12 +152,12 @@ export const acceptFriendRequest = async (req, res) => {
     if (friendRequest.receiver.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Unauthorized',
+        message: "Unauthorized",
       });
     }
 
     // Update request status
-    friendRequest.status = 'accepted';
+    friendRequest.status = "accepted";
     await friendRequest.save();
 
     // Add to friends list for both users
@@ -164,16 +169,18 @@ export const acceptFriendRequest = async (req, res) => {
       $addToSet: { friends: friendRequest.sender },
     });
 
-    await friendRequest.populate('sender', 'name email avatar isOnline');
-    await friendRequest.populate('receiver', 'name email avatar isOnline');
+    await friendRequest.populate("sender", "name email avatar isOnline");
+    await friendRequest.populate("receiver", "name email avatar isOnline");
 
     // Emit socket event to sender
-    const io = req.app.get('io');
-    const connectedUsers = req.app.get('connectedUsers');
+    const io = req.app.get("io");
+    const connectedUsers = req.app.get("connectedUsers");
     if (io && connectedUsers) {
-      const senderSocketId = connectedUsers.get(friendRequest.sender._id.toString());
+      const senderSocketId = connectedUsers.get(
+        friendRequest.sender._id.toString()
+      );
       if (senderSocketId) {
-        io.to(senderSocketId).emit('friend-request-accepted-notification', {
+        io.to(senderSocketId).emit("friend-request-accepted-notification", {
           accepter: {
             _id: req.user._id,
             name: req.user.name,
@@ -187,14 +194,14 @@ export const acceptFriendRequest = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Friend request accepted',
+      message: "Friend request accepted",
       friendRequest,
     });
   } catch (error) {
-    console.error('Accept friend request error:', error);
+    console.error("Accept friend request error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to accept friend request',
+      message: "Failed to accept friend request",
       error: error.message,
     });
   }
@@ -214,7 +221,7 @@ export const rejectFriendRequest = async (req, res) => {
     if (!friendRequest) {
       return res.status(404).json({
         success: false,
-        message: 'Friend request not found',
+        message: "Friend request not found",
       });
     }
 
@@ -222,22 +229,22 @@ export const rejectFriendRequest = async (req, res) => {
     if (friendRequest.receiver.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Unauthorized',
+        message: "Unauthorized",
       });
     }
 
-    friendRequest.status = 'rejected';
+    friendRequest.status = "rejected";
     await friendRequest.save();
 
     res.status(200).json({
       success: true,
-      message: 'Friend request rejected',
+      message: "Friend request rejected",
     });
   } catch (error) {
-    console.error('Reject friend request error:', error);
+    console.error("Reject friend request error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to reject friend request',
+      message: "Failed to reject friend request",
       error: error.message,
     });
   }
@@ -251,8 +258,8 @@ export const rejectFriendRequest = async (req, res) => {
 export const getFriends = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate(
-      'friends',
-      'name email avatar isOnline lastSeen'
+      "friends",
+      "name email avatar isOnline lastSeen"
     );
 
     res.status(200).json({
@@ -261,10 +268,10 @@ export const getFriends = async (req, res) => {
       friends: user.friends,
     });
   } catch (error) {
-    console.error('Get friends error:', error);
+    console.error("Get friends error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get friends',
+      message: "Failed to get friends",
       error: error.message,
     });
   }
@@ -282,18 +289,18 @@ export const searchUsers = async (req, res) => {
     if (!q || q.trim().length < 2) {
       return res.status(400).json({
         success: false,
-        message: 'Search query must be at least 2 characters',
+        message: "Search query must be at least 2 characters",
       });
     }
 
     const users = await User.find({
       _id: { $ne: req.user._id }, // Exclude current user
       $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { email: { $regex: q, $options: 'i' } },
+        { name: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
       ],
     })
-      .select('name email avatar isOnline')
+      .select("name email avatar isOnline")
       .limit(20);
 
     res.status(200).json({
@@ -302,10 +309,10 @@ export const searchUsers = async (req, res) => {
       users,
     });
   } catch (error) {
-    console.error('Search users error:', error);
+    console.error("Search users error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to search users',
+      message: "Failed to search users",
       error: error.message,
     });
   }

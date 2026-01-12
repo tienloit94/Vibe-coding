@@ -20,7 +20,7 @@ export interface Message {
   sender: User;
   receiver: User;
   content: string;
-  messageType: 'text' | 'file' | 'image' | 'video' | 'audio';
+  messageType: "text" | "file" | "image" | "video" | "audio";
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;

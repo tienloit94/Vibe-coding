@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import axios from 'axios';
+import { create } from "zustand";
+import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export interface Post {
   _id: string;
@@ -15,6 +15,11 @@ export interface Post {
   images?: string[];
   video?: string;
   likes: any[];
+  reactions?: Array<{
+    user: any;
+    type: "like" | "love" | "haha" | "wow" | "sad" | "angry";
+    createdAt: string;
+  }>;
   comments: Array<{
     user: {
       _id: string;
@@ -29,7 +34,7 @@ export interface Post {
     name: string;
     avatar?: string;
   }>;
-  visibility: 'public' | 'friends' | 'private';
+  visibility: "public" | "friends" | "private";
   createdAt: string;
   updatedAt: string;
 }
@@ -41,9 +46,26 @@ interface PostStore {
 
   fetchFeed: () => Promise<void>;
   fetchUserPosts: (userId: string) => Promise<void>;
-  createPost: (data: FormData | { content: string; images?: string[]; video?: string; visibility?: string }) => Promise<void>;
-  updatePost: (postId: string, data: { content: string; taggedUsers?: string[] }) => Promise<void>;
+  createPost: (
+    data:
+      | FormData
+      | {
+          content: string;
+          images?: string[];
+          video?: string;
+          visibility?: string;
+        }
+  ) => Promise<void>;
+  updatePost: (
+    postId: string,
+    data: { content: string; taggedUsers?: string[] }
+  ) => Promise<void>;
   toggleLike: (postId: string) => Promise<void>;
+  addReaction: (
+    postId: string,
+    type: "like" | "love" | "haha" | "wow" | "sad" | "angry"
+  ) => Promise<void>;
+  removeReaction: (postId: string) => Promise<void>;
   addComment: (postId: string, content: string) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
 }
@@ -61,7 +83,10 @@ export const usePostStore = create<PostStore>((set) => ({
       });
       set({ posts: response.data.posts, loading: false });
     } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to fetch feed', loading: false });
+      set({
+        error: error.response?.data?.message || "Failed to fetch feed",
+        loading: false,
+      });
     }
   },
 
@@ -73,7 +98,10 @@ export const usePostStore = create<PostStore>((set) => ({
       });
       set({ posts: response.data.posts, loading: false });
     } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to fetch posts', loading: false });
+      set({
+        error: error.response?.data?.message || "Failed to fetch posts",
+        loading: false,
+      });
     }
   },
 
@@ -85,7 +113,7 @@ export const usePostStore = create<PostStore>((set) => ({
 
       // If data is FormData, set appropriate header
       if (data instanceof FormData) {
-        config.headers = { 'Content-Type': 'multipart/form-data' };
+        config.headers = { "Content-Type": "multipart/form-data" };
       }
 
       const response = await axios.post(`${API_URL}/api/posts`, data, config);
@@ -93,43 +121,84 @@ export const usePostStore = create<PostStore>((set) => ({
         posts: [response.data, ...state.posts],
       }));
     } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to create post' });
+      set({ error: error.response?.data?.message || "Failed to create post" });
       throw error;
     }
   },
 
   updatePost: async (postId, data) => {
     try {
-      const response = await axios.put(
-        `${API_URL}/api/posts/${postId}`,
-        data,
-        { withCredentials: true }
-      );
-      
+      const response = await axios.put(`${API_URL}/api/posts/${postId}`, data, {
+        withCredentials: true,
+      });
+
       set((state) => ({
         posts: state.posts.map((post) =>
           post._id === postId ? response.data : post
         ),
       }));
     } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to update post' });
+      set({ error: error.response?.data?.message || "Failed to update post" });
       throw error;
     }
   },
 
   toggleLike: async (postId) => {
     try {
-      const response = await axios.post(`${API_URL}/api/posts/${postId}/like`, {}, {
-        withCredentials: true,
-      });
-      
+      const response = await axios.post(
+        `${API_URL}/api/posts/${postId}/like`,
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+
       set((state) => ({
         posts: state.posts.map((post) =>
           post._id === postId ? response.data : post
         ),
       }));
     } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to like post' });
+      set({ error: error.response?.data?.message || "Failed to like post" });
+      throw error;
+    }
+  },
+
+  addReaction: async (postId, type) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/posts/${postId}/reaction`,
+        { type },
+        { withCredentials: true }
+      );
+
+      set((state) => ({
+        posts: state.posts.map((post) =>
+          post._id === postId ? response.data.post : post
+        ),
+      }));
+    } catch (error: any) {
+      set({ error: error.response?.data?.message || "Failed to add reaction" });
+      throw error;
+    }
+  },
+
+  removeReaction: async (postId) => {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/api/posts/${postId}/reaction`,
+        { withCredentials: true }
+      );
+
+      set((state) => ({
+        posts: state.posts.map((post) =>
+          post._id === postId ? response.data.post : post
+        ),
+      }));
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Failed to remove reaction",
+      });
       throw error;
     }
   },
@@ -141,7 +210,7 @@ export const usePostStore = create<PostStore>((set) => ({
         { content },
         { withCredentials: true }
       );
-      
+
       // Check for warning
       if (response.data.warning) {
         // Still update the post, but also show warning
@@ -152,14 +221,19 @@ export const usePostStore = create<PostStore>((set) => ({
         }));
         throw new Error(response.data.warning);
       }
-      
+
       set((state) => ({
         posts: state.posts.map((post) =>
           post._id === postId ? response.data.post || response.data : post
         ),
       }));
     } catch (error: any) {
-      set({ error: error.response?.data?.message || error.message || 'Failed to add comment' });
+      set({
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to add comment",
+      });
       throw error;
     }
   },
@@ -169,12 +243,12 @@ export const usePostStore = create<PostStore>((set) => ({
       await axios.delete(`${API_URL}/api/posts/${postId}`, {
         withCredentials: true,
       });
-      
+
       set((state) => ({
         posts: state.posts.filter((post) => post._id !== postId),
       }));
     } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to delete post' });
+      set({ error: error.response?.data?.message || "Failed to delete post" });
       throw error;
     }
   },

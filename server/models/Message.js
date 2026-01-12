@@ -1,26 +1,26 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
     sender: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Sender is required'],
+      ref: "User",
+      required: [true, "Sender is required"],
     },
     receiver: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Receiver is required'],
+      ref: "User",
+      required: [true, "Receiver is required"],
     },
     content: {
       type: String,
       trim: true,
-      maxlength: [2000, 'Message cannot exceed 2000 characters'],
+      maxlength: [2000, "Message cannot exceed 2000 characters"],
     },
     messageType: {
       type: String,
-      enum: ['text', 'file', 'image', 'video', 'audio'],
-      default: 'text',
+      enum: ["text", "file", "image", "video", "audio"],
+      default: "text",
     },
     fileUrl: {
       type: String,
@@ -46,7 +46,7 @@ const messageSchema = new mongoose.Schema(
       {
         user: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
+          ref: "User",
           required: true,
         },
         emoji: {
@@ -76,8 +76,8 @@ messageSchema.statics.getConversation = async function (userId1, userId2) {
       { sender: userId2, receiver: userId1 },
     ],
   })
-    .populate('sender', 'name avatar isOnline')
-    .populate('receiver', 'name avatar isOnline')
+    .populate("sender", "name avatar isOnline")
+    .populate("receiver", "name avatar isOnline")
     .sort({ createdAt: 1 }); // Oldest first
 };
 
@@ -96,6 +96,6 @@ messageSchema.statics.markAsRead = async function (senderId, receiverId) {
   );
 };
 
-const Message = mongoose.model('Message', messageSchema);
+const Message = mongoose.model("Message", messageSchema);
 
 export default Message;

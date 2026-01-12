@@ -1,35 +1,59 @@
-import Post from '../models/Post.js';
-import User from '../models/User.js';
-import FriendRequest from '../models/FriendRequest.js';
-import { containsOffensiveWords } from '../utils/contentModeration.js';
-import { createNotification } from './notificationController.js';
+import Post from "../models/Post.js";
+import User from "../models/User.js";
+import FriendRequest from "../models/FriendRequest.js";
+import { containsOffensiveWords } from "../utils/contentModeration.js";
+import { createNotification } from "./notificationController.js";
 
 // Create new post
 export const createPost = async (req, res) => {
   try {
-    const { content, visibility, taggedUsers } = req.body;
+    const { content, visibility, taggedUsers, group, isAnonymous } = req.body;
 
-    // Handle uploaded images
-    const images = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
-    
+    // Handle uploaded files
+    const images = [];
+    let video = null;
+
+    if (req.files && req.files.length > 0) {
+      req.files.forEach((file) => {
+        const filePath = `/uploads/${file.filename}`;
+        // Check if file is video
+        if (file.mimetype.startsWith("video/")) {
+          video = filePath;
+        } else {
+          images.push(filePath);
+        }
+      });
+    }
+
     // Parse taggedUsers if it's a string
     let taggedUsersArray = [];
     if (taggedUsers) {
-      taggedUsersArray = typeof taggedUsers === 'string' ? JSON.parse(taggedUsers) : taggedUsers;
+      taggedUsersArray =
+        typeof taggedUsers === "string" ? JSON.parse(taggedUsers) : taggedUsers;
     }
 
-    const post = await Post.create({
+    const postData = {
       author: req.user._id,
       content,
-      images,
       taggedUsers: taggedUsersArray,
-      visibility: visibility || 'friends',
-    });
+      visibility: visibility || "friends",
+      group: group || null,
+      isAnonymous: isAnonymous === "true" || isAnonymous === true || false,
+    };
+
+    // Add images or video
+    if (video) {
+      postData.video = video;
+    } else if (images.length > 0) {
+      postData.images = images;
+    }
+
+    const post = await Post.create(postData);
 
     const populatedPost = await Post.findById(post._id)
-      .populate('author', 'name email avatar')
-      .populate('taggedUsers', 'name avatar');
-    
+      .populate("author", "name email avatar")
+      .populate("taggedUsers", "name avatar");
+
     // Send notifications to tagged users
     if (taggedUsersArray && taggedUsersArray.length > 0) {
       for (const userId of taggedUsersArray) {
@@ -37,7 +61,7 @@ export const createPost = async (req, res) => {
           await createNotification(
             userId,
             req.user._id,
-            'post_tag',
+            "post_tag",
             `${req.user.name} đã gắn thẻ bạn trong một bài viết`,
             post._id,
             `/home?postId=${post._id}`
@@ -48,8 +72,8 @@ export const createPost = async (req, res) => {
 
     res.status(201).json(populatedPost);
   } catch (error) {
-    console.error('Error creating post:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error creating post:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -63,15 +87,13 @@ export const getNewsFeed = async (req, res) => {
     // Get user's friends
     const friendRequests = await FriendRequest.find({
       $or: [
-        { sender: req.user._id, status: 'accepted' },
-        { receiver: req.user._id, status: 'accepted' },
+        { sender: req.user._id, status: "accepted" },
+        { receiver: req.user._id, status: "accepted" },
       ],
     });
 
     const friendIds = friendRequests.map((fr) =>
-      fr.sender.toString() === req.user._id.toString()
-        ? fr.receiver
-        : fr.sender
+      fr.sender.toString() === req.user._id.toString() ? fr.receiver : fr.sender
     );
 
     // Add own user ID
@@ -80,18 +102,20 @@ export const getNewsFeed = async (req, res) => {
     // Get posts from friends and self
     const posts = await Post.find({
       author: { $in: userIds },
-      visibility: { $in: ['public', 'friends'] },
+      visibility: { $in: ["public", "friends"] },
     })
-      .populate('author', 'name email avatar')
-      .populate('comments.user', 'name avatar')
-      .populate('likes', 'name avatar')
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar")
+      .populate("shares.user", "name avatar")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await Post.countDocuments({
       author: { $in: userIds },
-      visibility: { $in: ['public', 'friends'] },
+      visibility: { $in: ["public", "friends"] },
     });
 
     res.json({
@@ -101,8 +125,8 @@ export const getNewsFeed = async (req, res) => {
       total,
     });
   } catch (error) {
-    console.error('Error fetching news feed:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error fetching news feed:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -115,9 +139,11 @@ export const getUserPosts = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const posts = await Post.find({ author: userId })
-      .populate('author', 'name email avatar')
-      .populate('comments.user', 'name avatar')
-      .populate('likes', 'name avatar')
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar")
+      .populate("shares.user", "name avatar")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -131,8 +157,8 @@ export const getUserPosts = async (req, res) => {
       total,
     });
   } catch (error) {
-    console.error('Error fetching user posts:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error fetching user posts:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -143,7 +169,7 @@ export const toggleLike = async (req, res) => {
     const post = await Post.findById(postId);
 
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      return res.status(404).json({ message: "Post not found" });
     }
 
     const likeIndex = post.likes.indexOf(req.user._id);
@@ -159,13 +185,111 @@ export const toggleLike = async (req, res) => {
     await post.save();
 
     const updatedPost = await Post.findById(postId)
-      .populate('author', 'name email avatar')
-      .populate('likes', 'name avatar');
+      .populate("author", "name email avatar")
+      .populate("likes", "name avatar");
 
     res.json(updatedPost);
   } catch (error) {
-    console.error('Error toggling like:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error toggling like:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Add/Update reaction to post (like, love, haha, wow, sad, angry)
+export const addReaction = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { type } = req.body; // type: 'like', 'love', 'haha', 'wow', 'sad', 'angry'
+
+    if (!["like", "love", "haha", "wow", "sad", "angry"].includes(type)) {
+      return res.status(400).json({
+        message: "Invalid reaction type",
+        success: false,
+      });
+    }
+
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      return res.status(404).json({
+        message: "Post not found",
+        success: false,
+      });
+    }
+
+    // Check if user already reacted
+    const existingReactionIndex = post.reactions.findIndex(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+
+    if (existingReactionIndex > -1) {
+      // Update existing reaction
+      post.reactions[existingReactionIndex].type = type;
+      post.reactions[existingReactionIndex].createdAt = new Date();
+    } else {
+      // Add new reaction
+      post.reactions.push({
+        user: req.user._id,
+        type,
+      });
+    }
+
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate("author", "name email avatar")
+      .populate("likes", "name avatar")
+      .populate("reactions.user", "name avatar");
+
+    res.json({
+      success: true,
+      post: updatedPost,
+    });
+  } catch (error) {
+    console.error("Error adding reaction:", error);
+    res.status(500).json({
+      message: "Server error",
+      success: false,
+    });
+  }
+};
+
+// Remove reaction from post
+export const removeReaction = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      return res.status(404).json({
+        message: "Post not found",
+        success: false,
+      });
+    }
+
+    // Remove user's reaction
+    post.reactions = post.reactions.filter(
+      (r) => r.user.toString() !== req.user._id.toString()
+    );
+
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate("author", "name email avatar")
+      .populate("likes", "name avatar")
+      .populate("reactions.user", "name avatar");
+
+    res.json({
+      success: true,
+      post: updatedPost,
+    });
+  } catch (error) {
+    console.error("Error removing reaction:", error);
+    res.status(500).json({
+      message: "Server error",
+      success: false,
+    });
   }
 };
 
@@ -181,7 +305,7 @@ export const addComment = async (req, res) => {
     const post = await Post.findById(postId);
 
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      return res.status(404).json({ message: "Post not found" });
     }
 
     post.comments.push({
@@ -192,22 +316,25 @@ export const addComment = async (req, res) => {
     await post.save();
 
     const updatedPost = await Post.findById(postId)
-      .populate('author', 'name email avatar')
-      .populate('comments.user', 'name avatar')
-      .populate('likes', 'name avatar');
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar")
+      .populate("shares.user", "name avatar");
 
     // Return warning if offensive
     if (isOffensive) {
-      return res.json({ 
-        post: updatedPost, 
-        warning: 'Bình luận của bạn chứa ngôn từ không phù hợp. Vui lòng tôn trọng cộng đồng!' 
+      return res.json({
+        post: updatedPost,
+        warning:
+          "Bình luận của bạn chứa ngôn từ không phù hợp. Vui lòng tôn trọng cộng đồng!",
       });
     }
 
     res.json({ post: updatedPost });
   } catch (error) {
-    console.error('Error adding comment:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error adding comment:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -216,30 +343,36 @@ export const updatePost = async (req, res) => {
   try {
     const { postId } = req.params;
     const { content, taggedUsers } = req.body;
-    
+
     const post = await Post.findById(postId);
 
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      return res.status(404).json({ message: "Post not found" });
     }
 
     // Check if user is the author
     if (post.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to update this post' });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update this post" });
     }
 
     if (content) post.content = content;
     if (taggedUsers !== undefined) {
-      const taggedUsersArray = typeof taggedUsers === 'string' ? JSON.parse(taggedUsers) : taggedUsers;
+      const taggedUsersArray =
+        typeof taggedUsers === "string" ? JSON.parse(taggedUsers) : taggedUsers;
       post.taggedUsers = taggedUsersArray;
-      
+
       // Send notifications to newly tagged users
       for (const userId of taggedUsersArray) {
-        if (userId !== req.user._id.toString() && !post.taggedUsers.includes(userId)) {
+        if (
+          userId !== req.user._id.toString() &&
+          !post.taggedUsers.includes(userId)
+        ) {
           await createNotification(
             userId,
             req.user._id,
-            'post_tag',
+            "post_tag",
             `${req.user.name} đã gắn thẻ bạn trong một bài viết`,
             post._id,
             `/home?postId=${post._id}`
@@ -251,15 +384,17 @@ export const updatePost = async (req, res) => {
     await post.save();
 
     const updatedPost = await Post.findById(postId)
-      .populate('author', 'name email avatar')
-      .populate('comments.user', 'name avatar')
-      .populate('likes', 'name avatar')
-      .populate('taggedUsers', 'name avatar');
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar")
+      .populate("shares.user", "name avatar")
+      .populate("taggedUsers", "name avatar");
 
     res.json(updatedPost);
   } catch (error) {
-    console.error('Error updating post:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error updating post:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -270,19 +405,261 @@ export const deletePost = async (req, res) => {
     const post = await Post.findById(postId);
 
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      return res.status(404).json({ message: "Post not found" });
     }
 
     // Check if user is the author
     if (post.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to delete this post' });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this post" });
     }
 
     await Post.findByIdAndDelete(postId);
 
-    res.json({ success: true, message: 'Post deleted' });
+    res.json({ success: true, message: "Post deleted" });
   } catch (error) {
-    console.error('Error deleting post:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error deleting post:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Reply to a comment
+export const replyToComment = async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    const { content } = req.body;
+
+    // Handle image upload
+    let imagePath = null;
+    if (req.file) {
+      imagePath = `/uploads/${req.file.filename}`;
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    comment.replies.push({
+      user: req.user._id,
+      content,
+      image: imagePath,
+    });
+
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar");
+
+    // Create notification
+    if (comment.user.toString() !== req.user._id.toString()) {
+      await createNotification(
+        comment.user,
+        req.user._id,
+        "comment_reply",
+        `${req.user.name} đã trả lời bình luận của bạn`,
+        post._id,
+        `/home?postId=${post._id}`
+      );
+    }
+
+    res.json({ post: updatedPost });
+  } catch (error) {
+    console.error("Error replying to comment:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Toggle like on comment
+export const toggleCommentLike = async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    const userId = req.user._id;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    const likeIndex = comment.likes.indexOf(userId);
+    if (likeIndex > -1) {
+      comment.likes.splice(likeIndex, 1);
+    } else {
+      comment.likes.push(userId);
+
+      // Create notification
+      if (comment.user.toString() !== userId.toString()) {
+        await createNotification(
+          comment.user,
+          userId,
+          "comment_like",
+          `${req.user.name} đã thích bình luận của bạn`,
+          post._id,
+          `/home?postId=${post._id}`
+        );
+      }
+    }
+
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar");
+
+    res.json({
+      post: updatedPost,
+      isLiked: likeIndex === -1,
+      likesCount: comment.likes.length,
+    });
+  } catch (error) {
+    console.error("Error toggling comment like:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Toggle like on reply
+export const toggleReplyLike = async (req, res) => {
+  try {
+    const { postId, commentId, replyId } = req.params;
+    const userId = req.user._id;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    const reply = comment.replies.id(replyId);
+    if (!reply) {
+      return res.status(404).json({ message: "Reply not found" });
+    }
+
+    const likeIndex = reply.likes.indexOf(userId);
+    if (likeIndex > -1) {
+      reply.likes.splice(likeIndex, 1);
+    } else {
+      reply.likes.push(userId);
+
+      // Create notification
+      if (reply.user.toString() !== userId.toString()) {
+        await createNotification(
+          reply.user,
+          userId,
+          "reply_like",
+          `${req.user.name} đã thích phản hồi của bạn`,
+          post._id,
+          `/home?postId=${post._id}`
+        );
+      }
+    }
+
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar");
+
+    res.json({
+      post: updatedPost,
+      isLiked: likeIndex === -1,
+      likesCount: reply.likes.length,
+    });
+  } catch (error) {
+    console.error("Error toggling reply like:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Share a post
+export const sharePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user._id;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // Check if already shared
+    const alreadyShared = post.shares.some(
+      (share) => share.user.toString() === userId.toString()
+    );
+
+    if (!alreadyShared) {
+      post.shares.push({ user: userId });
+      await post.save();
+
+      // Create notification
+      if (post.author.toString() !== userId.toString()) {
+        await createNotification(
+          post.author,
+          userId,
+          "post_share",
+          `${req.user.name} đã chia sẻ bài viết của bạn`,
+          post._id,
+          `/home?postId=${post._id}`
+        );
+      }
+    }
+
+    const updatedPost = await Post.findById(postId)
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar")
+      .populate("shares.user", "name avatar");
+
+    res.json({
+      post: updatedPost,
+      message: "Post shared successfully",
+      sharesCount: post.shares.length,
+    });
+  } catch (error) {
+    console.error("Error sharing post:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get posts by group
+export const getGroupPosts = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    const posts = await Post.find({ group: groupId })
+      .populate("author", "name email avatar")
+      .populate("comments.user", "name avatar")
+      .populate("comments.replies.user", "name avatar")
+      .populate("likes", "name avatar")
+      .populate("reactions.user", "name avatar")
+      .populate("shares.user", "name avatar")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, posts });
+  } catch (error) {
+    console.error("Error fetching group posts:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };

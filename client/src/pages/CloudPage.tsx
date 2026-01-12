@@ -1,21 +1,26 @@
-import { useEffect, useState, useRef } from 'react';
-import { useNoteStore } from '../store/noteStore';
+import { useEffect, useState, useRef } from "react";
+import { useNoteStore } from "../store/noteStore";
 // import { useAuthStore } from '../store/authStore';
-import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
-import { Card } from '../components/ui/card';
-import { ScrollArea } from '../components/ui/scroll-area';
-import { 
-  Plus, Pin, Trash2, X, Image as ImageIcon, 
-  CloudIcon 
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { Button } from "../components/ui/button";
+import { Textarea } from "../components/ui/textarea";
+import { Card } from "../components/ui/card";
+import { ScrollArea } from "../components/ui/scroll-area";
+import {
+  Plus,
+  Pin,
+  Trash2,
+  X,
+  Image as ImageIcon,
+  CloudIcon,
+} from "lucide-react";
+import { toast } from "sonner";
 // import { useTranslation } from 'react-i18next';
 
 export default function CloudPage() {
   // const { t } = useTranslation();
-  const { notes, fetchNotes, createNote, deleteNote, togglePin } = useNoteStore();
-  const [content, setContent] = useState('');
+  const { notes, fetchNotes, createNote, deleteNote, togglePin } =
+    useNoteStore();
+  const [content, setContent] = useState("");
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -27,50 +32,50 @@ export default function CloudPage() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + selectedImages.length > 5) {
-      toast.error('Tối đa 5 ảnh');
+      toast.error("Tối đa 5 ảnh");
       return;
     }
 
     setSelectedImages([...selectedImages, ...files]);
-    
+
     // Create previews
-    files.forEach(file => {
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreviews(prev => [...prev, reader.result as string]);
+        setImagePreviews((prev) => [...prev, reader.result as string]);
       };
       reader.readAsDataURL(file);
     });
   };
 
   const removeImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleCreateNote = async () => {
     if (!content.trim() && selectedImages.length === 0) {
-      toast.error('Vui lòng nhập nội dung hoặc chọn ảnh');
+      toast.error("Vui lòng nhập nội dung hoặc chọn ảnh");
       return;
     }
 
     try {
       await createNote(content, selectedImages);
-      setContent('');
+      setContent("");
       setSelectedImages([]);
       setImagePreviews([]);
-      toast.success('Đã lưu ghi chú');
+      toast.success("Đã lưu ghi chú");
     } catch (error) {
-      toast.error('Không thể lưu ghi chú');
+      toast.error("Không thể lưu ghi chú");
     }
   };
 
   const handleDeleteNote = async (id: string) => {
     try {
       await deleteNote(id);
-      toast.success('Đã xóa ghi chú');
+      toast.success("Đã xóa ghi chú");
     } catch (error) {
-      toast.error('Không thể xóa ghi chú');
+      toast.error("Không thể xóa ghi chú");
     }
   };
 
@@ -78,7 +83,7 @@ export default function CloudPage() {
     try {
       await togglePin(id);
     } catch (error) {
-      toast.error('Không thể ghim ghi chú');
+      toast.error("Không thể ghim ghi chú");
     }
   };
 
@@ -105,7 +110,7 @@ export default function CloudPage() {
             onChange={(e) => setContent(e.target.value)}
             className="mb-3 min-h-[100px] dark:bg-gray-700 dark:text-white dark:border-gray-600"
           />
-          
+
           {/* Image Previews */}
           {imagePreviews.length > 0 && (
             <div className="grid grid-cols-3 gap-2 mb-3">
@@ -161,21 +166,23 @@ export default function CloudPage() {
               <Card
                 key={note._id}
                 className={`p-4 ${
-                  note.isPinned 
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
-                    : 'dark:bg-gray-800 dark:border-gray-700'
+                  note.isPinned
+                    ? "border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                    : "dark:bg-gray-800 dark:border-gray-700"
                 }`}
               >
                 <div className="flex justify-between items-start mb-2">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(note.createdAt).toLocaleString('vi-VN')}
+                    {new Date(note.createdAt).toLocaleString("vi-VN")}
                   </p>
                   <div className="flex gap-2">
                     <Button
                       size="icon"
                       variant="ghost"
                       onClick={() => handleTogglePin(note._id)}
-                      className={note.isPinned ? 'text-blue-600 dark:text-blue-400' : ''}
+                      className={
+                        note.isPinned ? "text-blue-600 dark:text-blue-400" : ""
+                      }
                     >
                       <Pin className="w-4 h-4" />
                     </Button>

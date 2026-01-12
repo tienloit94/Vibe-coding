@@ -1,13 +1,23 @@
-import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Home, MessageCircle, User, Bell, Search, LogOut, Users, Moon, Sun, Globe, CloudIcon } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
-import { useChatStore } from '@/store/chatStore';
-import { useFriendStore } from '@/store/friendStore';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useTranslation } from 'react-i18next';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Link, useLocation, Outlet } from "react-router-dom";
+import {
+  Home,
+  MessageCircle,
+  User,
+  Bell,
+  LogOut,
+  Users,
+  Moon,
+  Sun,
+  Globe,
+  Settings,
+} from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import { useChatStore } from "@/store/chatStore";
+import { useFriendStore } from "@/store/friendStore";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useTranslation } from "react-i18next";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,49 +25,73 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
-import { useEffect, useState } from 'react';
-import NotificationDropdown from '@/components/notifications/NotificationDropdown';
-import AISettingsDialog from '@/components/settings/AISettingsDialog';
-import MessageDropdown from '@/components/chat/MessageDropdown';
-import MiniChatPopup from '@/components/chat/MiniChatPopup';
+} from "@/components/ui/dropdown-menu";
+import { useEffect, useState } from "react";
+import NotificationDropdown from "@/components/notifications/NotificationDropdown";
+import AISettingsDialog from "@/components/settings/AISettingsDialog";
+import MessageDropdown from "@/components/chat/MessageDropdown";
+import MiniChatPopup from "@/components/chat/MiniChatPopup";
+import Sidebar from "@/components/ui/Sidebar";
+import RightWidget from "@/components/ui/RightWidget";
+import SearchBar from "@/components/ui/SearchBar";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export default function MainLayout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { conversations, fetchConversations } = useChatStore();
-  const { friendRequests, fetchFriendRequests } = useFriendStore();
+  const { friendRequests, fetchFriendRequests, getFriends } = useFriendStore();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [miniChatUserId, setMiniChatUserId] = useState<string | null>(null);
 
+  // Setup online status tracking
+  useOnlineStatus();
+
+  // Hide sidebars on certain routes (like Reels)
+  const hideWidgets = location.pathname === "/reels";
+
   useEffect(() => {
     fetchConversations();
     fetchFriendRequests();
-  }, [fetchConversations, fetchFriendRequests]);
+    getFriends();
+  }, [fetchConversations, fetchFriendRequests, getFriends]);
 
   // Calculate total unread messages
-  const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+  const totalUnread = conversations.reduce(
+    (sum, conv) => sum + (conv.unreadCount || 0),
+    0
+  );
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
-    localStorage.setItem('language', lng);
+    localStorage.setItem("language", lng);
   };
 
   const navigation = [
-    { name: t('home'), href: '/home', icon: Home, badge: 0 },
-    { name: t('messages'), href: '/messages', icon: MessageCircle, badge: totalUnread },
-    { name: 'Cloud', href: '/cloud', icon: CloudIcon, badge: 0 },
-    { name: t('friends'), href: '/friends', icon: Users, badge: 0 },
-    { name: t('notifications'), href: '/notifications', icon: Bell, badge: friendRequests.length },
-    { name: t('profile'), href: '/profile', icon: User, badge: 0 },
+    { name: t("home"), href: "/home", icon: Home, badge: 0 },
+    {
+      name: t("messages"),
+      href: "/messages",
+      icon: MessageCircle,
+      badge: totalUnread,
+    },
+    { name: "Nhóm", href: "/groups", icon: Users, badge: 0 },
+    { name: t("friends"), href: "/friends", icon: Users, badge: 0 },
+    {
+      name: t("notifications"),
+      href: "/notifications",
+      icon: Bell,
+      badge: friendRequests.length,
+    },
+    { name: t("profile"), href: "/profile", icon: User, badge: 0 },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
     <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Top Navbar - Facebook Style */}
+      {/* Top Navbar - Facebook Style - STICKY */}
       <nav className="sticky top-0 z-50 border-b bg-white dark:bg-gray-800 shadow-sm">
         <div className="flex h-14 items-center justify-between px-4">
           {/* Left: Logo & Search */}
@@ -67,14 +101,7 @@ export default function MainLayout() {
                 <MessageCircle className="h-6 w-6 text-white" />
               </div>
             </Link>
-            <div className="relative w-64 hidden md:block">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                type="text"
-                placeholder={t('search')}
-                className="w-full pl-10 h-10 bg-gray-100 dark:bg-gray-700 border-0 rounded-full"
-              />
-            </div>
+            <SearchBar />
           </div>
 
           {/* Center: Main Navigation Icons */}
@@ -88,15 +115,15 @@ export default function MainLayout() {
                   to={item.href}
                   className={`relative flex items-center justify-center h-12 px-8 rounded-lg transition-colors ${
                     active
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? "text-blue-600 dark:text-blue-400"
+                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                   title={item.name}
                 >
                   <Icon className="h-7 w-7" />
                   {item.badge > 0 && (
                     <span className="absolute top-1 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">
-                      {item.badge > 9 ? '9+' : item.badge}
+                      {item.badge > 9 ? "9+" : item.badge}
                     </span>
                   )}
                   {active && (
@@ -112,45 +139,66 @@ export default function MainLayout() {
             {/* Language Selector */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                >
                   <Globe className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{t('language')}</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => changeLanguage('vi')}>
+                <DropdownMenuLabel>{t("language")}</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => changeLanguage("vi")}>
                   🇻🇳 Tiếng Việt
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => changeLanguage('en')}>
+                <DropdownMenuItem onClick={() => changeLanguage("en")}>
                   🇬🇧 English
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => changeLanguage('ja')}>
+                <DropdownMenuItem onClick={() => changeLanguage("ja")}>
                   🇯🇵 日本語
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* Theme Toggle */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
               onClick={toggleTheme}
             >
-              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+              {theme === "light" ? (
+                <Moon className="h-5 w-5" />
+              ) : (
+                <Sun className="h-5 w-5" />
+              )}
             </Button>
 
             {/* Message Dropdown */}
-            <MessageDropdown onOpenChat={(userId) => setMiniChatUserId(userId)} />
+            <MessageDropdown
+              onOpenChat={(userId) => setMiniChatUserId(userId)}
+            />
 
             {/* Notification Dropdown */}
             <NotificationDropdown />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full"
+                >
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user?.avatar ? `http://localhost:5000${user.avatar}` : undefined} alt={user?.name} />
+                    <AvatarImage
+                      src={
+                        user?.avatar
+                          ? `http://localhost:5000${user.avatar}`
+                          : undefined
+                      }
+                      alt={user?.name}
+                    />
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
                       {user?.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -161,7 +209,13 @@ export default function MainLayout() {
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="flex items-center space-x-2">
                     <User className="h-4 w-4" />
-                    <span>{t('profile')}</span>
+                    <span>{t("profile")}</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center space-x-2">
+                    <Settings className="h-4 w-4" />
+                    <span>Cài đặt</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -169,9 +223,12 @@ export default function MainLayout() {
                   <AISettingsDialog />
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="flex items-center space-x-2 text-red-600">
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="flex items-center space-x-2 text-red-600"
+                >
                   <LogOut className="h-4 w-4" />
-                  <span>{t('logout')}</span>
+                  <span>{t("logout")}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -179,16 +236,25 @@ export default function MainLayout() {
         </div>
       </nav>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-        <Outlet />
-      </main>
+      {/* Main Content Area with Sidebars */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar - Sticky */}
+        {!hideWidgets && <Sidebar />}
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+          <Outlet />
+        </main>
+
+        {/* Right Widget - Sticky - Show on large screens except Reels */}
+        {!hideWidgets && location.pathname !== "/messages" && <RightWidget />}
+      </div>
 
       {/* Mini Chat Popup */}
       {miniChatUserId && (
-        <MiniChatPopup 
-          userId={miniChatUserId} 
-          onClose={() => setMiniChatUserId(null)} 
+        <MiniChatPopup
+          userId={miniChatUserId}
+          onClose={() => setMiniChatUserId(null)}
         />
       )}
     </div>

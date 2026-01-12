@@ -1,21 +1,24 @@
-import { useEffect, useState } from 'react';
-import { X, Mail, MessageCircle } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { useChatStore } from '@/store/chatStore';
-import { useFriendStore } from '@/store/friendStore';
-import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/axios';
-import { User } from '@/types';
-import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
+import { useEffect, useState } from "react";
+import { X, Mail, MessageCircle } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useChatStore } from "@/store/chatStore";
+import { useFriendStore } from "@/store/friendStore";
+import { useAuthStore } from "@/store/authStore";
+import api from "@/lib/axios";
+import { User } from "@/types";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 
 interface UserProfileModalProps {
   userId: string;
   onClose: () => void;
 }
 
-export default function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
+export default function UserProfileModal({
+  userId,
+  onClose,
+}: UserProfileModalProps) {
   const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const currentUser = useAuthStore((state) => state.user);
@@ -32,7 +35,9 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
       const response = await api.get(`/users/${userId}`);
       setUserData(response.data.user);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Không thể tải thông tin người dùng');
+      toast.error(
+        error.response?.data?.message || "Không thể tải thông tin người dùng"
+      );
     } finally {
       setLoading(false);
     }
@@ -48,13 +53,15 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
   const handleAddFriend = async () => {
     try {
       await sendFriendRequest(userId);
-      toast.success('Đã gửi lời mời kết bạn');
+      toast.success("Đã gửi lời mời kết bạn");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Không thể gửi lời mời kết bạn');
+      toast.error(
+        error.response?.data?.message || "Không thể gửi lời mời kết bạn"
+      );
     }
   };
 
-  const isFriend = friends.some(f => f._id === userId);
+  const isFriend = friends.some((f) => f._id === userId);
   const isCurrentUser = currentUser?._id === userId;
 
   if (loading) {
@@ -91,9 +98,13 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
           <div className="flex justify-center -mt-16 mb-4">
             <div className="relative">
               <Avatar className="h-32 w-32 border-4 border-white dark:border-gray-800">
-                <AvatarImage 
-                  src={userData.avatar ? `http://localhost:5000${userData.avatar}` : undefined} 
-                  alt={userData.name} 
+                <AvatarImage
+                  src={
+                    userData.avatar
+                      ? `http://localhost:5000${userData.avatar}`
+                      : undefined
+                  }
+                  alt={userData.name}
                 />
                 <AvatarFallback className="text-4xl">
                   {userData.name.charAt(0).toUpperCase()}
@@ -112,10 +123,17 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
               {userData.isOnline ? (
-                <span className="text-green-600 dark:text-green-400">● Đang online</span>
+                <span className="text-green-600 dark:text-green-400">
+                  ● Đang online
+                </span>
               ) : (
                 <span>
-                  Hoạt động {userData.lastSeen ? formatDistanceToNow(new Date(userData.lastSeen), { addSuffix: true }) : 'gần đây'}
+                  Hoạt động{" "}
+                  {userData.lastSeen
+                    ? formatDistanceToNow(new Date(userData.lastSeen), {
+                        addSuffix: true,
+                      })
+                    : "gần đây"}
                 </span>
               )}
             </p>
@@ -125,12 +143,16 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
           <div className="space-y-3 mb-6">
             <div className="flex items-center gap-3 text-sm">
               <Mail className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-700 dark:text-gray-300">{userData.email}</span>
+              <span className="text-gray-700 dark:text-gray-300">
+                {userData.email}
+              </span>
             </div>
             {userData.bio && (
               <div className="flex items-start gap-3 text-sm">
                 <MessageCircle className="h-4 w-4 text-gray-400 mt-0.5" />
-                <p className="text-gray-700 dark:text-gray-300">{userData.bio}</p>
+                <p className="text-gray-700 dark:text-gray-300">
+                  {userData.bio}
+                </p>
               </div>
             )}
           </div>

@@ -1,29 +1,47 @@
-import { useState, useEffect, useRef } from 'react';
-import { usePostStore } from '@/store/postStore';
-import { useAuthStore } from '@/store/authStore';
-import { useChatStore } from '@/store/chatStore';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea';
-import { Heart, MessageCircle, Share2, Send, Image as ImageIcon, X } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
-import MiniChatPopup from '@/components/chat/MiniChatPopup';
-import socketService from '@/lib/socket';
-import { playMessageSound, showBrowserNotification, requestNotificationPermission } from '@/lib/notificationSound';
-import { Message } from '@/types';
-import imageCompression from 'browser-image-compression';
+import { useState, useEffect, useRef } from "react";
+import { usePostStore } from "@/store/postStore";
+import { useAuthStore } from "@/store/authStore";
+import { useChatStore } from "@/store/chatStore";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  Send,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  X,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import MiniChatPopup from "@/components/chat/MiniChatPopup";
+import socketService from "@/lib/socket";
+import {
+  playMessageSound,
+  showBrowserNotification,
+  requestNotificationPermission,
+} from "@/lib/notificationSound";
+import { Message } from "@/types";
+import imageCompression from "browser-image-compression";
 
 export default function HomePage() {
-  const [postContent, setPostContent] = useState('');
+  const [postContent, setPostContent] = useState("");
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [videoPreview, setVideoPreview] = useState<string>("");
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>(
+    {}
+  );
   const [showComments, setShowComments] = useState<Record<string, boolean>>({});
   const [miniChatUserId, setMiniChatUserId] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const { posts, loading, fetchFeed, createPost, toggleLike, addComment } = usePostStore();
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const { posts, loading, fetchFeed, createPost, toggleLike, addComment } =
+    usePostStore();
   const { fetchUsers } = useChatStore();
   const user = useAuthStore((state) => state.user);
 
@@ -40,22 +58,24 @@ export default function HomePage() {
 
     const handleNewMessage = (message: Message) => {
       // Only show mini chat if sender is not current user and not AI bot
-      if (message.sender._id !== user?._id && !message.sender.email?.includes('aibot')) {
+      if (
+        message.sender._id !== user?._id &&
+        !message.sender.email?.includes("aibot")
+      ) {
         // Play notification sound
         playMessageSound();
-        
+
         // Show browser notification
-        showBrowserNotification(
-          `${message.sender.name} đã nhắn tin cho bạn`,
-          {
-            body: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''),
-            tag: message.sender._id,
-          }
-        );
-        
+        showBrowserNotification(`${message.sender.name} đã nhắn tin cho bạn`, {
+          body:
+            message.content.substring(0, 50) +
+            (message.content.length > 50 ? "..." : ""),
+          tag: message.sender._id,
+        });
+
         // Show mini chat popup
         setMiniChatUserId(message.sender._id);
-        
+
         // Show toast notification
         toast.info(`Tin nhắn mới từ ${message.sender.name}`, {
           duration: 3000,
@@ -63,25 +83,31 @@ export default function HomePage() {
       }
     };
 
-    socket.on('message-received', handleNewMessage);
+    socket.on("message-received", handleNewMessage);
 
     return () => {
-      socket.off('message-received', handleNewMessage);
+      socket.off("message-received", handleNewMessage);
     };
   }, [user]);
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + selectedImages.length > 5) {
-      toast.error('Maximum 5 images allowed');
+      toast.error("Tối đa 5 ảnh");
       return;
+    }
+
+    // Clear video if images are selected
+    if (selectedVideo) {
+      setSelectedVideo(null);
+      setVideoPreview("");
     }
 
     // Compress images before adding
     const compressedImages: File[] = [];
     const compressedPreviews: string[] = [];
 
-    toast.info('Processing images...');
+    toast.info("Đang xử lý ảnh...");
 
     for (const file of files) {
       try {
@@ -103,7 +129,7 @@ export default function HomePage() {
           compressedPreviews.push(URL.createObjectURL(file));
         }
       } catch (error) {
-        console.error('Compression error:', error);
+        console.error("Compression error:", error);
         compressedImages.push(file);
         compressedPreviews.push(URL.createObjectURL(file));
       }
@@ -111,8 +137,36 @@ export default function HomePage() {
 
     setSelectedImages([...selectedImages, ...compressedImages]);
     setImagePreviews([...imagePreviews, ...compressedPreviews]);
-    
-    toast.success('Images processed successfully');
+
+    toast.success("Ảnh đã được xử lý");
+  };
+
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 50MB)
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Video quá lớn. Tối đa 50MB");
+      return;
+    }
+
+    // Check if it's a video file
+    if (!file.type.startsWith("video/")) {
+      toast.error("Vui lòng chọn file video");
+      return;
+    }
+
+    // Clear images if video is selected
+    if (selectedImages.length > 0) {
+      setSelectedImages([]);
+      setImagePreviews([]);
+    }
+
+    setSelectedVideo(file);
+    setVideoPreview(URL.createObjectURL(file));
+    toast.success("Video đã được chọn");
   };
 
   const removeImage = (index: number) => {
@@ -122,26 +176,38 @@ export default function HomePage() {
     setImagePreviews(newPreviews);
   };
 
+  const removeVideo = () => {
+    setSelectedVideo(null);
+    setVideoPreview("");
+  };
+
   const handleCreatePost = async () => {
-    if (!postContent.trim() && selectedImages.length === 0) {
-      toast.error('Please write something or add images');
+    if (!postContent.trim() && selectedImages.length === 0 && !selectedVideo) {
+      toast.error("Vui lòng viết nội dung hoặc thêm ảnh/video");
       return;
     }
 
     try {
       const formData = new FormData();
-      formData.append('content', postContent);
-      selectedImages.forEach(image => {
-        formData.append('images', image);
-      });
+      formData.append("content", postContent);
+
+      if (selectedVideo) {
+        formData.append("video", selectedVideo);
+      } else {
+        selectedImages.forEach((image) => {
+          formData.append("images", image);
+        });
+      }
 
       await createPost(formData);
-      setPostContent('');
+      setPostContent("");
       setSelectedImages([]);
+      setSelectedVideo(null);
       setImagePreviews([]);
-      toast.success('Post created!');
+      setVideoPreview("");
+      toast.success("Đã đăng bài!");
     } catch (error) {
-      toast.error('Failed to create post');
+      toast.error("Đăng bài thất bại");
     }
   };
 
@@ -149,7 +215,7 @@ export default function HomePage() {
     try {
       await toggleLike(postId);
     } catch (error) {
-      toast.error('Failed to like post');
+      toast.error("Failed to like post");
     }
   };
 
@@ -159,14 +225,14 @@ export default function HomePage() {
 
     try {
       await addComment(postId, content);
-      setCommentInputs({ ...commentInputs, [postId]: '' });
-      toast.success('Bình luận đã được đăng');
+      setCommentInputs({ ...commentInputs, [postId]: "" });
+      toast.success("Bình luận đã được đăng");
     } catch (error: any) {
       // Check if it's a warning (offensive content detected)
-      if (error.message && error.message.includes('không phù hợp')) {
+      if (error.message && error.message.includes("không phù hợp")) {
         toast.warning(error.message, { duration: 5000 });
       } else {
-        toast.error('Failed to add comment');
+        toast.error("Failed to add comment");
       }
     }
   };
@@ -182,7 +248,9 @@ export default function HomePage() {
         <Textarea
           placeholder="What's on your mind?"
           value={postContent}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPostContent(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setPostContent(e.target.value)
+          }
           className="mb-3 min-h-[100px] resize-none border-0 focus-visible:ring-0 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
         />
 
@@ -191,7 +259,11 @@ export default function HomePage() {
           <div className="mb-3 grid grid-cols-2 gap-2">
             {imagePreviews.map((preview, index) => (
               <div key={index} className="relative">
-                <img src={preview} alt={`Preview ${index}`} className="w-full h-48 object-cover rounded-lg" />
+                <img
+                  src={preview}
+                  alt={`Preview ${index}`}
+                  className="w-full h-48 object-cover rounded-lg"
+                />
                 <Button
                   variant="destructive"
                   size="icon"
@@ -205,6 +277,25 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Video Preview */}
+        {videoPreview && (
+          <div className="mb-3 relative">
+            <video
+              src={videoPreview}
+              controls
+              className="w-full rounded-lg max-h-96"
+            />
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute top-2 right-2 h-8 w-8"
+              onClick={removeVideo}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <div className="flex space-x-2">
             <input
@@ -214,56 +305,114 @@ export default function HomePage() {
               multiple
               className="hidden"
               onChange={handleImageSelect}
+              disabled={!!selectedVideo}
             />
-            <Button 
-              variant="ghost" 
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={handleVideoSelect}
+              disabled={selectedImages.length > 0}
+            />
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => imageInputRef.current?.click()}
+              disabled={!!selectedVideo}
+              className="dark:text-gray-300 dark:hover:bg-gray-700"
             >
               <ImageIcon className="mr-2 h-4 w-4" />
-              Photo
+              Ảnh
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => videoInputRef.current?.click()}
+              disabled={selectedImages.length > 0}
+              className="dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              <VideoIcon className="mr-2 h-4 w-4" />
+              Video
             </Button>
           </div>
-          <Button onClick={handleCreatePost} disabled={!postContent.trim() && selectedImages.length === 0}>
-            Post
+          <Button
+            onClick={handleCreatePost}
+            disabled={
+              !postContent.trim() &&
+              selectedImages.length === 0 &&
+              !selectedVideo
+            }
+          >
+            Đăng
           </Button>
         </div>
       </Card>
 
       {/* News Feed */}
       {loading ? (
-        <div className="text-center py-8 dark:text-gray-400">Loading posts...</div>
+        <div className="text-center py-8 dark:text-gray-400">
+          Đang tải bài viết...
+        </div>
       ) : posts.length === 0 ? (
         <Card className="p-8 text-center dark:bg-gray-800 dark:border-gray-700">
-          <p className="text-gray-500 dark:text-gray-400">No posts yet. Be the first to share something!</p>
+          <p className="text-gray-500 dark:text-gray-400">
+            No posts yet. Be the first to share something!
+          </p>
         </Card>
       ) : (
         <div className="space-y-6">
           {posts.map((post: any) => {
-            const isLiked = post.likes?.some((like: any) => like._id === user?._id);
-            
+            const isLiked = post.likes?.some(
+              (like: any) => like._id === user?._id
+            );
+
             return (
-              <Card key={post._id} className="p-4 dark:bg-gray-800 dark:border-gray-700">
+              <Card
+                key={post._id}
+                className="p-4 dark:bg-gray-800 dark:border-gray-700"
+              >
                 {/* Post Header */}
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <Avatar>
-                      <AvatarImage src={post.author.avatar} alt={post.author.name} />
+                      <AvatarImage
+                        src={post.author.avatar}
+                        alt={post.author.name}
+                      />
                       <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
                         {post.author.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-semibold dark:text-white">{post.author.name}</p>
+                      <p className="font-semibold dark:text-white">
+                        {post.author.name}
+                      </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(post.createdAt), {
+                          addSuffix: true,
+                        })}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Post Content */}
-                <p className="mb-3 whitespace-pre-wrap dark:text-gray-200">{post.content}</p>
+                <p className="mb-3 whitespace-pre-wrap dark:text-gray-200">
+                  {post.content}
+                </p>
+
+                {/* Post Video */}
+                {post.video && (
+                  <div className="mb-3">
+                    <video
+                      src={`http://localhost:5000${post.video}`}
+                      controls
+                      className="w-full rounded-lg max-h-96"
+                      playsInline
+                    />
+                  </div>
+                )}
 
                 {/* Post Images */}
                 {post.images && post.images.length > 0 && (
@@ -286,13 +435,17 @@ export default function HomePage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleLike(post._id)}
-                      className={isLiked ? 'text-red-500' : ''}
+                      className={isLiked ? "text-red-500" : ""}
                     >
-                      <Heart className={`mr-1 h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+                      <Heart
+                        className={`mr-1 h-4 w-4 ${
+                          isLiked ? "fill-current" : ""
+                        }`}
+                      />
                       {post.likes?.length || 0}
                     </Button>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => toggleCommentsSection(post._id)}
                     >
@@ -319,8 +472,12 @@ export default function HomePage() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 rounded-lg bg-gray-100 dark:bg-gray-700 px-3 py-2">
-                              <p className="text-sm font-semibold dark:text-white">{comment.user.name}</p>
-                              <p className="text-sm dark:text-gray-200">{comment.content}</p>
+                              <p className="text-sm font-semibold dark:text-white">
+                                {comment.user.name}
+                              </p>
+                              <p className="text-sm dark:text-gray-200">
+                                {comment.content}
+                              </p>
                             </div>
                           </div>
                         ))}
@@ -332,12 +489,15 @@ export default function HomePage() {
                       <input
                         type="text"
                         placeholder="Write a comment..."
-                        value={commentInputs[post._id] || ''}
+                        value={commentInputs[post._id] || ""}
                         onChange={(e) =>
-                          setCommentInputs({ ...commentInputs, [post._id]: e.target.value })
+                          setCommentInputs({
+                            ...commentInputs,
+                            [post._id]: e.target.value,
+                          })
                         }
                         onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             handleComment(post._id);
                           }
                         }}

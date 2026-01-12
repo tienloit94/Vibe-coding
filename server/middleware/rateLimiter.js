@@ -1,15 +1,16 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit from "express-rate-limit";
 
 /**
  * General API rate limiter
- * 100 requests per 15 minutes per IP
+ * 1000 requests per 15 minutes per IP (loosened for development)
  */
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 1000,
   message: {
     success: false,
-    message: 'Too many requests from this IP, please try again after 15 minutes',
+    message:
+      "Too many requests from this IP, please try again after 15 minutes",
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -17,14 +18,15 @@ export const generalLimiter = rateLimit({
 
 /**
  * Auth rate limiter - stricter for login/register
- * 50 requests per 15 minutes per IP
+ * 500 requests per 15 minutes per IP (loosened for development)
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50,
+  max: 500,
   message: {
     success: false,
-    message: 'Too many authentication attempts, please try again after 15 minutes',
+    message:
+      "Too many authentication attempts, please try again after 15 minutes",
   },
   skipSuccessfulRequests: true, // Don't count successful requests
 });
@@ -38,7 +40,7 @@ export const messageLimiter = rateLimit({
   max: 30,
   message: {
     success: false,
-    message: 'Too many messages sent. Please slow down.',
+    message: "Too many messages sent. Please slow down.",
   },
   standardHeaders: true,
 });
@@ -52,7 +54,7 @@ export const postLimiter = rateLimit({
   max: 50,
   message: {
     success: false,
-    message: 'Too many posts created. Please wait before posting again.',
+    message: "Too many posts created. Please wait before posting again.",
   },
   skip: () => false, // Don't skip any requests, but increase limit
 });
@@ -66,7 +68,7 @@ export const friendRequestLimiter = rateLimit({
   max: 20,
   message: {
     success: false,
-    message: 'Too many friend requests sent. Please wait.',
+    message: "Too many friend requests sent. Please wait.",
   },
 });
 
@@ -79,7 +81,7 @@ export const commentLimiter = rateLimit({
   max: 50,
   message: {
     success: false,
-    message: 'Too many comments. Please slow down.',
+    message: "Too many comments. Please slow down.",
   },
 });
 
@@ -92,6 +94,6 @@ export const uploadLimiter = rateLimit({
   max: 20,
   message: {
     success: false,
-    message: 'Too many file uploads. Please wait.',
+    message: "Too many file uploads. Please wait.",
   },
 });

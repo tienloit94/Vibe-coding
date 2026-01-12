@@ -1,16 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, Minimize2, Maximize2, Send } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useChatStore } from '@/store/chatStore';
-import { useAuthStore } from '@/store/authStore';
-import { format } from 'date-fns';
-import { getAssetUrl } from '@/lib/config';
-import { vi, enUS, ja } from 'date-fns/locale';
-import { useTranslation } from 'react-i18next';
-import { Message } from '@/types';
+import { useState, useEffect, useRef } from "react";
+import { X, Minimize2, Maximize2, Send } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useChatStore } from "@/store/chatStore";
+import { useAuthStore } from "@/store/authStore";
+import { format } from "date-fns";
+import { getAssetUrl } from "@/lib/config";
+import { vi, enUS, ja } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { Message } from "@/types";
+import socketService from "@/lib/socket";
 
 interface MiniChatPopupProps {
   userId: string;
@@ -19,16 +19,24 @@ interface MiniChatPopupProps {
 
 export default function MiniChatPopup({ userId, onClose }: MiniChatPopupProps) {
   const [isMinimized, setIsMinimized] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
-  const { users, messages, fetchMessages, sendMessage, fetchUsers } = useChatStore();
+  const [newMessage, setNewMessage] = useState("");
+  const {
+    users,
+    messages,
+    fetchMessages,
+    sendMessage,
+    fetchUsers,
+    addMessage,
+  } = useChatStore();
   const { user } = useAuthStore();
   const { i18n } = useTranslation();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const lastMessageRef = useRef<HTMLDivElement>(null);
 
   const chatUser = users.find((u) => u._id === userId);
   const userMessages = messages[userId] || [];
-  
-  console.log('🎯 MiniChatPopup State:', {
+
+  console.log("🎯 MiniChatPopup State:", {
     userId,
     hasMessagesForUser: !!messages[userId],
     messageCount: userMessages.length,
@@ -45,27 +53,137 @@ export default function MiniChatPopup({ userId, onClose }: MiniChatPopupProps) {
   // Fetch messages when userId changes
   useEffect(() => {
     if (userId && !isMinimized) {
-      console.log('🔵 MiniChatPopup: Fetching messages for userId:', userId);
-      fetchMessages(userId);
+      console.log("🔵 MiniChatPopup: Fetching messages for userId:", userId);
+      fetchMessages(userId).then(() => {
+        // Scroll to bottom after messages are loaded
+        setTimeout(() => {
+          lastMessageRef.current?.scrollIntoView({
+            behavior: "auto",
+            block: "end",
+          });
+        }, 200);
+      });
     }
   }, [userId, isMinimized, fetchMessages]);
 
+  // Setup socket listeners
   useEffect(() => {
-    console.log('💬 MiniChatPopup: Messages updated:', userMessages.length, 'messages');
-    if (scrollRef.current && !isMinimized) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const handleMessageSent = (message: Message) => {
+      // Extract IDs (handle both string and object)
+      const senderId =
+        typeof message.sender === "string"
+          ? message.sender
+          : message.sender._id;
+      const receiverId =
+        typeof message.receiver === "string"
+          ? message.receiver
+          : message.receiver._id;
+
+      console.log("📤 MiniChatPopup: message-sent received", {
+        messageId: message._id,
+        currentUserId: userId,
+        senderId,
+        receiverId,
+        matches: receiverId === userId || senderId === userId,
+      });
+
+      // Only add if it's for this conversation
+      if (receiverId === userId || senderId === userId) {
+        console.log("✅ Adding message from message-sent");
+        addMessage(message);
+      } else {
+        console.log("⚠️ Message not for this conversation");
+      }
+    };
+
+    const handleMessageReceived = (message: Message) => {
+      // Extract IDs (handle both string and object)
+      const senderId =
+        typeof message.sender === "string"
+          ? message.sender
+          : message.sender._id;
+      const receiverId =
+        typeof message.receiver === "string"
+          ? message.receiver
+          : message.receiver._id;
+
+      console.log("📥 MiniChatPopup: message-received", {
+        messageId: message._id,
+        currentUserId: userId,
+        senderId,
+        receiverId,
+        matches: senderId === userId || receiverId === userId,
+      });
+
+      // Only add if it's for this conversation
+      if (senderId === userId || receiverId === userId) {
+        console.log("✅ Adding message from message-received");
+        addMessage(message);
+      } else {
+        console.log("⚠️ Message not for this conversation");
+      }
+    };
+
+    socketService.on("message-sent", handleMessageSent);
+    socketService.on("message-received", handleMessageReceived);
+
+    return () => {
+      socketService.off("message-sent", handleMessageSent);
+      socketService.off("message-received", handleMessageReceived);
+    };
+  }, [userId, addMessage]);
+
+  // Auto-scroll to bottom when messages change or popup opens
+  useEffect(() => {
+    console.log(
+      "💬 MiniChatPopup: Messages updated:",
+      userMessages.length,
+      "messages"
+    );
+    if (!isMinimized && lastMessageRef.current) {
+      // Scroll last message into view
+      setTimeout(() => {
+        lastMessageRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+        });
+      }, 100);
     }
   }, [userMessages, isMinimized]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !userId) return;
 
-    await sendMessage(userId, newMessage);
-    setNewMessage('');
+    const messageContent = newMessage;
+    setNewMessage("");
+
+    // Optimistic update - add message immediately to UI
+    const tempMessage: Message = {
+      _id: `temp-${Date.now()}`,
+      sender: user!,
+      receiver: chatUser || {
+        _id: userId,
+        name: "User",
+        email: "",
+        avatar: "",
+        isOnline: false,
+      },
+      content: messageContent,
+      messageType: "text",
+      isRead: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    console.log("🚀 Optimistic update: adding temp message", tempMessage._id);
+    addMessage(tempMessage);
+
+    // Send via socket
+    await sendMessage(userId, messageContent);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -73,9 +191,9 @@ export default function MiniChatPopup({ userId, onClose }: MiniChatPopupProps) {
 
   const getLocale = () => {
     switch (i18n.language) {
-      case 'vi':
+      case "vi":
         return vi;
-      case 'ja':
+      case "ja":
         return ja;
       default:
         return enUS;
@@ -85,48 +203,54 @@ export default function MiniChatPopup({ userId, onClose }: MiniChatPopupProps) {
   // If chatUser not found yet, show loading or create temporary user object
   const displayUser = chatUser || {
     _id: userId,
-    name: 'Loading...',
-    email: '',
-    avatar: '',
+    name: "Loading...",
+    email: "",
+    avatar: "",
     isOnline: false,
   };
 
   return (
-    <div 
+    <div
       className="fixed bottom-4 right-4 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50 flex flex-col"
-      style={{ height: isMinimized ? 'auto' : '480px' }}
+      style={{ height: isMinimized ? "auto" : "480px" }}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-lg">
         <div className="flex items-center space-x-2">
           <Avatar className="h-8 w-8">
-            <AvatarImage 
-              src={getAssetUrl(displayUser.avatar)} 
-              alt={displayUser.name} 
+            <AvatarImage
+              src={getAssetUrl(displayUser.avatar)}
+              alt={displayUser?.name || "User"}
             />
             <AvatarFallback className="bg-blue-500 text-white text-sm">
-              {displayUser.name.charAt(0).toUpperCase()}
+              {displayUser?.name?.charAt(0).toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-sm font-semibold text-white">{displayUser.name}</p>
+            <p className="text-sm font-semibold text-white">
+              {displayUser?.name || "Unknown User"}
+            </p>
             <p className="text-xs text-blue-100">
-              {displayUser.isOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}
+              {displayUser.isOnline ? "Đang hoạt động" : "Ngoại tuyến"}
             </p>
           </div>
         </div>
         <div className="flex items-center space-x-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-7 w-7 text-white hover:bg-white/20"
             onClick={() => setIsMinimized(!isMinimized)}
           >
-            {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+            {isMinimized ? (
+              <Maximize2 className="h-4 w-4" />
+            ) : (
+              <Minimize2 className="h-4 w-4" />
+            )}
           </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-7 w-7 text-white hover:bg-white/20"
             onClick={onClose}
           >
@@ -138,51 +262,60 @@ export default function MiniChatPopup({ userId, onClose }: MiniChatPopupProps) {
       {/* Messages */}
       {!isMinimized && (
         <>
-          <ScrollArea className="flex-1 p-3" ref={scrollRef}>
+          <div className="flex-1 overflow-y-auto p-3" ref={viewportRef}>
             <div className="space-y-3">
-              {userMessages.map((message: Message) => {
+              {userMessages.map((message: Message, index: number) => {
                 const isOwn = message.sender._id === user?._id;
                 const senderInfo = isOwn ? user : chatUser;
-                
+                const isLastMessage = index === userMessages.length - 1;
+
                 return (
-                  <div key={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    key={message._id}
+                    ref={isLastMessage ? lastMessageRef : null}
+                    className={`flex ${
+                      isOwn ? "justify-end" : "justify-start"
+                    }`}
+                  >
                     {!isOwn && (
                       <Avatar className="h-7 w-7 mr-2 mt-1">
-                        <AvatarImage 
-                          src={getAssetUrl(senderInfo?.avatar)} 
-                          alt={senderInfo?.name} 
+                        <AvatarImage
+                          src={getAssetUrl(senderInfo?.avatar)}
+                          alt={senderInfo?.name}
                         />
                         <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-xs">
                           {senderInfo?.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                     )}
-                    
+
                     <div className={`max-w-[70%]`}>
-                      {message.messageType === 'text' && (
+                      {message.messageType === "text" && (
                         <div
                           className={`rounded-2xl px-3 py-2 ${
                             isOwn
-                              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                              : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           }`}
                         >
-                          <p className="text-sm break-words">{message.content}</p>
+                          <p className="text-sm break-words">
+                            {message.content}
+                          </p>
                         </div>
                       )}
-                      {message.messageType === 'image' && (
+                      {message.messageType === "image" && (
                         <img
                           src={getAssetUrl(message.fileUrl)}
                           alt="Sent image"
                           className="max-w-full rounded-lg"
                         />
                       )}
-                      {message.messageType === 'file' && (
+                      {message.messageType === "file" && (
                         <div
                           className={`rounded-2xl px-3 py-2 ${
                             isOwn
-                              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                              : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           }`}
                         >
                           <a
@@ -195,15 +328,21 @@ export default function MiniChatPopup({ userId, onClose }: MiniChatPopupProps) {
                           </a>
                         </div>
                       )}
-                      <p className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${isOwn ? 'text-right' : 'text-left'}`}>
-                        {format(new Date(message.createdAt), 'HH:mm', { locale: getLocale() })}
+                      <p
+                        className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${
+                          isOwn ? "text-right" : "text-left"
+                        }`}
+                      >
+                        {format(new Date(message.createdAt), "HH:mm", {
+                          locale: getLocale(),
+                        })}
                       </p>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Input */}
           <div className="p-3 border-t border-gray-200 dark:border-gray-700">
@@ -216,8 +355,8 @@ export default function MiniChatPopup({ userId, onClose }: MiniChatPopupProps) {
                 onKeyPress={handleKeyPress}
                 className="flex-1 bg-gray-100 dark:bg-gray-700 border-0 rounded-full"
               />
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
                 className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90"
                 onClick={handleSend}
                 disabled={!newMessage.trim()}

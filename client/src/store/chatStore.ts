@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { User, Message, Conversation } from '@/types';
-import api from '@/lib/axios';
-import socketService from '@/lib/socket';
+import { create } from "zustand";
+import { User, Message, Conversation } from "@/types";
+import api from "@/lib/axios";
+import socketService from "@/lib/socket";
 
 interface ChatState {
   users: User[];
@@ -14,13 +14,17 @@ interface ChatState {
   currentPage: number;
   hasMoreMessages: boolean;
   loadingMessages: boolean;
-  
+
   fetchUsers: () => Promise<void>;
   fetchConversations: () => Promise<void>;
   selectUser: (user: User | null) => void;
   fetchMessages: (userId: string, page?: number) => Promise<void>;
   loadMoreMessages: (userId: string) => Promise<void>;
-  sendMessage: (receiverId: string, content: string, file?: File) => Promise<void>;
+  sendMessage: (
+    receiverId: string,
+    content: string,
+    file?: File
+  ) => Promise<void>;
   addMessage: (message: Message) => void;
   setOnlineUsers: (users: string[]) => void;
   updateUserStatus: (userId: string, isOnline: boolean) => void;
@@ -45,21 +49,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   fetchUsers: async () => {
     try {
-      const response = await api.get('/users');
+      const response = await api.get("/users");
       set({ users: response.data.users });
       // Also fetch conversations for unread counts
       get().fetchConversations();
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      console.error("Failed to fetch users:", error);
     }
   },
 
   fetchConversations: async () => {
     try {
-      const response = await api.get('/messages/conversations');
+      const response = await api.get("/messages/conversations");
       set({ conversations: response.data.conversations });
     } catch (error) {
-      console.error('Failed to fetch conversations:', error);
+      console.error("Failed to fetch conversations:", error);
     }
   },
 
@@ -77,9 +81,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   fetchMessages: async (userId: string, page: number = 1) => {
     try {
       set({ loadingMessages: true });
-      const response = await api.get(`/messages/${userId}?page=${page}&limit=50`);
-      console.log('📥 Fetched messages for userId:', userId, 'count:', response.data.messages.length);
-      set((state) => ({ 
+      const response = await api.get(
+        `/messages/${userId}?page=${page}&limit=50`
+      );
+      console.log(
+        "📥 Fetched messages for userId:",
+        userId,
+        "count:",
+        response.data.messages.length
+      );
+      set((state) => ({
         messages: {
           ...state.messages,
           [userId]: response.data.messages, // Store messages by userId
@@ -89,7 +100,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         loadingMessages: false,
       }));
     } catch (error) {
-      console.error('Failed to fetch messages:', error);
+      console.error("Failed to fetch messages:", error);
       set({ loadingMessages: false });
     }
   },
@@ -101,20 +112,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ loadingMessages: true });
       const nextPage = currentPage + 1;
-      const response = await api.get(`/messages/${userId}?page=${nextPage}&limit=50`);
-      
+      const response = await api.get(
+        `/messages/${userId}?page=${nextPage}&limit=50`
+      );
+
       // Prepend older messages
       set((state) => ({
         messages: {
           ...state.messages,
-          [userId]: [...response.data.messages, ...(state.messages[userId] || [])],
+          [userId]: [
+            ...response.data.messages,
+            ...(state.messages[userId] || []),
+          ],
         },
         currentPage: nextPage,
         hasMoreMessages: response.data.pagination?.hasMore || false,
         loadingMessages: false,
       }));
     } catch (error) {
-      console.error('Failed to load more messages:', error);
+      console.error("Failed to load more messages:", error);
       set({ loadingMessages: false });
     }
   },
@@ -124,26 +140,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (file) {
         // Upload file via API
         const formData = new FormData();
-        formData.append('file', file);
-        if (content) formData.append('content', content);
+        formData.append("file", file);
+        if (content) formData.append("content", content);
 
         const response = await api.post(`/messages/${receiverId}`, formData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         });
 
         // Emit via socket for real-time delivery
-        socketService.emit('new-message', { 
-          receiverId, 
-          message: response.data.message 
+        socketService.emit("new-message", {
+          receiverId,
+          message: response.data.message,
         });
       } else {
         // Text message via socket
-        socketService.emit('new-message', { receiverId, content });
+        socketService.emit("new-message", { receiverId, content });
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
     }
   },
 
@@ -151,16 +167,87 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       // Determine which user's conversation this message belongs to
       const { user } = (window as any).__authStore?.getState?.() || {};
-      const otherUserId = message.sender._id === user?._id 
-        ? message.receiver._id 
-        : message.sender._id;
-      
-      return {
-        messages: {
-          ...state.messages,
-          [otherUserId]: [...(state.messages[otherUserId] || []), message],
-        },
-      };
+      if (!user) {
+        console.log("⚠️ addMessage: No user in authStore");
+        return state;
+      }
+
+      // Extract IDs (handle both string and object for sender/receiver)
+      const senderId =
+        typeof message.sender === "string"
+          ? message.sender
+          : message.sender._id;
+      const receiverId =
+        typeof message.receiver === "string"
+          ? message.receiver
+          : message.receiver._id;
+
+      const otherUserId = senderId === user._id ? receiverId : senderId;
+
+      console.log("📝 addMessage called:", {
+        messageId: message._id,
+        senderId,
+        receiverId,
+        currentUserId: user._id,
+        otherUserId,
+        content: message.content?.substring(0, 50),
+        isTemp: message._id.startsWith("temp-"),
+      });
+
+      const existingMessages = state.messages[otherUserId] || [];
+
+      // If this is a real message (from server), check if we need to replace a temp message
+      if (!message._id.startsWith("temp-")) {
+        // Remove any temp messages with similar content/timing
+        const filteredMessages = existingMessages.filter(
+          (m) =>
+            !m._id.startsWith("temp-") ||
+            m.content !== message.content ||
+            Math.abs(
+              new Date(m.createdAt).getTime() -
+                new Date(message.createdAt).getTime()
+            ) > 5000
+        );
+
+        // Check if real message already exists
+        const messageExists = filteredMessages.some(
+          (m) => m._id === message._id
+        );
+
+        if (messageExists) {
+          console.log(
+            "📨 Message already exists, skipping duplicate:",
+            message._id
+          );
+          return state;
+        }
+
+        console.log("✅ Adding real message, removing temp if exists");
+        return {
+          messages: {
+            ...state.messages,
+            [otherUserId]: [...filteredMessages, message],
+          },
+        };
+      } else {
+        // This is a temp message (optimistic update)
+        const messageExists = existingMessages.some(
+          (m) => m._id === message._id
+        );
+
+        if (messageExists) {
+          console.log("📨 Temp message already exists:", message._id);
+          return state;
+        }
+
+        console.log("✅ Adding temp message for optimistic UI");
+        return {
+          messages: {
+            ...state.messages,
+            [otherUserId]: [...existingMessages, message],
+          },
+        };
+      }
     });
     // Refresh conversations to update unread count
     get().fetchConversations();
@@ -192,7 +279,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Refresh conversations to update unread count
       get().fetchConversations();
     } catch (error) {
-      console.error('Failed to mark as read:', error);
+      console.error("Failed to mark as read:", error);
     }
   },
 
@@ -205,16 +292,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   addReaction: async (messageId: string, emoji: string) => {
     try {
-      const response = await api.post(`/messages/${messageId}/reactions`, { emoji });
+      const response = await api.post(`/messages/${messageId}/reactions`, {
+        emoji,
+      });
       // Socket will handle the real-time update
-      socketService.emit('message-reaction', { 
-        messageId, 
-        receiverId: response.data.message.receiver._id === (window as any).__authStore?.getState?.().user?._id 
-          ? response.data.message.sender._id 
-          : response.data.message.receiver._id 
+      socketService.emit("message-reaction", {
+        messageId,
+        receiverId:
+          response.data.message.receiver._id ===
+          (window as any).__authStore?.getState?.().user?._id
+            ? response.data.message.sender._id
+            : response.data.message.receiver._id,
       });
     } catch (error) {
-      console.error('Failed to add reaction:', error);
+      console.error("Failed to add reaction:", error);
       throw error;
     }
   },
@@ -222,17 +313,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
   updateMessageReaction: (updatedMessage: Message) => {
     set((state) => {
       const { user } = (window as any).__authStore?.getState?.() || {};
-      const otherUserId = updatedMessage.sender._id === user?._id 
-        ? updatedMessage.receiver._id 
-        : updatedMessage.sender._id;
-      
+      const otherUserId =
+        updatedMessage.sender._id === user?._id
+          ? updatedMessage.receiver._id
+          : updatedMessage.sender._id;
+
       const userMessages = state.messages[otherUserId] || [];
-      const messageIndex = userMessages.findIndex(m => m._id === updatedMessage._id);
-      
+      const messageIndex = userMessages.findIndex(
+        (m) => m._id === updatedMessage._id
+      );
+
       if (messageIndex !== -1) {
         const newMessages = [...userMessages];
         newMessages[messageIndex] = updatedMessage;
-        
+
         return {
           messages: {
             ...state.messages,
@@ -240,7 +334,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           },
         };
       }
-      
+
       return state;
     });
   },

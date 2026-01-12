@@ -1,10 +1,10 @@
-import express from 'express';
-import { createServer } from 'http';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import express from "express";
+import { createServer } from "http";
+import dotenv from "dotenv";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,25 +13,32 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 // Import configurations
-import connectDB from './config/database.js';
-import { initializeSocket } from './config/socket.js';
-import { createAIBot } from './utils/createAIBot.js';
+import connectDB from "./config/database.js";
+import { initializeSocket } from "./config/socket.js";
+import { createAIBot } from "./utils/createAIBot.js";
 
 // Import routes
-import authRoutes from './routes/authRoutes.js';
-import userRoutes from './routes/userRoutes.js';
-import messageRoutes from './routes/messageRoutes.js';
-import friendRoutes from './routes/friendRoutes.js';
-import groupRoutes from './routes/groupRoutes.js';
-import postRoutes from './routes/postRoutes.js';
-import noteRoutes from './routes/noteRoutes.js';
-import blockRoutes from './routes/blockRoutes.js';
-import notificationRoutes from './routes/notificationRoutes.js';
-import aiRoutes from './routes/aiRoutes.js';
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
+import friendRoutes from "./routes/friendRoutes.js";
+import groupRoutes from "./routes/groupRoutes.js";
+import postRoutes from "./routes/postRoutes.js";
+import noteRoutes from "./routes/noteRoutes.js";
+import blockRoutes from "./routes/blockRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
+import storyRoutes from "./routes/storyRoutes.js";
 
 // Import middleware
-import { errorHandler, notFound } from './middleware/error.js';
-import { generalLimiter, authLimiter, messageLimiter, postLimiter, friendRequestLimiter } from './middleware/rateLimiter.js';
+import { errorHandler, notFound } from "./middleware/error.js";
+import {
+  generalLimiter,
+  authLimiter,
+  messageLimiter,
+  postLimiter,
+  friendRequestLimiter,
+} from "./middleware/rateLimiter.js";
 
 // Initialize Express app
 const app = express();
@@ -49,16 +56,18 @@ setTimeout(() => {
 const { io, connectedUsers } = initializeSocket(server);
 
 // Make io and connectedUsers accessible in routes
-app.set('io', io);
-app.set('connectedUsers', connectedUsers);
+app.set("io", io);
+app.set("connectedUsers", connectedUsers);
 
 // Middleware
 app.use(
   cors({
     origin: [
-      process.env.CLIENT_URL || 'http://localhost:5173',
-      'http://localhost:5174', // Additional port in case 5173 is busy
-      'http://localhost:5175',
+      process.env.CLIENT_URL || "http://localhost:5173",
+      "http://localhost:5174", // Additional port in case 5173 is busy
+      "http://localhost:5175",
+      "http://localhost:8080", // Docker client port
+      "http://localhost:3000", // Docker alternative port
     ],
     credentials: true,
   })
@@ -67,31 +76,58 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files from uploads directory with proper headers
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    // Set proper MIME types for videos
+    if (req.path.match(/\.(mp4|webm|ogg)$/i)) {
+      res.setHeader("Content-Type", "video/mp4");
+      res.setHeader("Accept-Ranges", "bytes");
+    } else if (req.path.match(/\.(mov)$/i)) {
+      res.setHeader("Content-Type", "video/quicktime");
+      res.setHeader("Accept-Ranges", "bytes");
+    } else if (req.path.match(/\.(avi)$/i)) {
+      res.setHeader("Content-Type", "video/x-msvideo");
+      res.setHeader("Accept-Ranges", "bytes");
+    } else if (req.path.match(/\.(mkv)$/i)) {
+      res.setHeader("Content-Type", "video/x-matroska");
+      res.setHeader("Accept-Ranges", "bytes");
+    } else if (req.path.match(/\.(wmv)$/i)) {
+      res.setHeader("Content-Type", "video/x-ms-wmv");
+      res.setHeader("Accept-Ranges", "bytes");
+    } else if (req.path.match(/\.(flv)$/i)) {
+      res.setHeader("Content-Type", "video/x-flv");
+      res.setHeader("Accept-Ranges", "bytes");
+    }
+    next();
+  },
+  express.static(path.join(__dirname, "uploads"))
+);
 
 // Apply general rate limiter to all API routes
-app.use('/api/', generalLimiter);
+app.use("/api/", generalLimiter);
 
 // Routes
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: 'Chat API is running',
-    version: '1.0.0',
+    message: "Chat API is running",
+    version: "1.0.0",
   });
 });
 
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/messages', messageLimiter, messageRoutes);
-app.use('/api/friends', friendRequestLimiter, friendRoutes);
-app.use('/api/groups', groupRoutes);
-app.use('/api/posts', postLimiter, postRoutes);
-app.use('/api/notes', noteRoutes);
-app.use('/api/block', blockRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/ai', aiRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/messages", messageLimiter, messageRoutes);
+app.use("/api/friends", friendRequestLimiter, friendRoutes);
+app.use("/api/groups", groupRoutes);
+app.use("/api/posts", postLimiter, postRoutes);
+app.use("/api/stories", storyRoutes);
+app.use("/api/notes", noteRoutes);
+app.use("/api/block", blockRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Error handling middleware (must be last)
 app.use(notFound);
@@ -103,20 +139,20 @@ server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║   🚀 Server running on port ${PORT}     ║
-║   📡 Environment: ${process.env.NODE_ENV || 'development'}        ║
+║   📡 Environment: ${process.env.NODE_ENV || "development"}        ║
 ║   🔗 URL: http://localhost:${PORT}       ║
 ╚════════════════════════════════════════╝
   `);
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  console.error('❌ Unhandled Rejection:', err);
+process.on("unhandledRejection", (err) => {
+  console.error("❌ Unhandled Rejection:", err);
   server.close(() => process.exit(1));
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
+process.on("uncaughtException", (err) => {
+  console.error("❌ Uncaught Exception:", err);
   process.exit(1);
 });

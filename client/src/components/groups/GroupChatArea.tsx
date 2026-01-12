@@ -1,19 +1,27 @@
-import { useState, useEffect, useRef, FormEvent } from 'react';
-import { useGroupStore } from '@/store/groupStore';
-import { useAuthStore } from '@/store/authStore';
-import socketService from '@/lib/socket';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { MoreVertical, Send, Paperclip, Users, LogOut, UserPlus, Download } from 'lucide-react';
+import { useState, useEffect, useRef, FormEvent } from "react";
+import { useGroupStore } from "@/store/groupStore";
+import { useAuthStore } from "@/store/authStore";
+import socketService from "@/lib/socket";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  MoreVertical,
+  Send,
+  Paperclip,
+  Users,
+  LogOut,
+  UserPlus,
+  Download,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -21,16 +29,22 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
-import EmojiPicker from '@/components/chat/EmojiPicker';
-import { toast } from 'sonner';
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
+import EmojiPicker from "@/components/chat/EmojiPicker";
+import { toast } from "sonner";
 
 export default function GroupChatArea() {
-  const { selectedGroup, groupMessages, sendGroupMessage, addGroupMessage, leaveGroup } = useGroupStore();
+  const {
+    selectedGroup,
+    groupMessages,
+    sendGroupMessage,
+    addGroupMessage,
+    leaveGroup,
+  } = useGroupStore();
   const user = useAuthStore((state) => state.user);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = selectedGroup?.admin._id === user?._id;
@@ -39,42 +53,45 @@ export default function GroupChatArea() {
   useEffect(() => {
     if (!selectedGroup) return;
 
-    socketService.on('group-message-received', (data: { groupId: string; message: any }) => {
-      if (data.groupId === selectedGroup._id) {
-        addGroupMessage(data.message);
+    socketService.on(
+      "group-message-received",
+      (data: { groupId: string; message: any }) => {
+        if (data.groupId === selectedGroup._id) {
+          addGroupMessage(data.message);
+        }
       }
-    });
+    );
 
     return () => {
-      socketService.off('group-message-received');
+      socketService.off("group-message-received");
     };
   }, [selectedGroup, addGroupMessage]);
 
   // Scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [groupMessages]);
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !selectedGroup) return;
-    
+
     try {
       await sendGroupMessage(selectedGroup._id, message);
-      setMessage('');
+      setMessage("");
     } catch (error) {
-      toast.error('Failed to send message');
+      toast.error("Failed to send message");
     }
   };
 
   const handleLeaveGroup = async () => {
     if (!selectedGroup) return;
-    
-    if (confirm('Are you sure you want to leave this group?')) {
+
+    if (confirm("Are you sure you want to leave this group?")) {
       try {
         await leaveGroup(selectedGroup._id);
       } catch (error) {
-        console.error('Failed to leave group:', error);
+        console.error("Failed to leave group:", error);
       }
     }
   };
@@ -127,17 +144,26 @@ export default function GroupChatArea() {
                   {/* Admin */}
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={selectedGroup.admin.avatar} alt={selectedGroup.admin.name} />
+                      <AvatarImage
+                        src={selectedGroup.admin.avatar}
+                        alt={selectedGroup.admin.name}
+                      />
                       <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
                         {selectedGroup.admin.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{selectedGroup.admin.name}</p>
-                        <Badge variant="secondary" className="text-xs">Admin</Badge>
+                        <p className="font-medium">
+                          {selectedGroup.admin.name}
+                        </p>
+                        <Badge variant="secondary" className="text-xs">
+                          Admin
+                        </Badge>
                       </div>
-                      <p className="text-xs text-gray-500">{selectedGroup.admin.email}</p>
+                      <p className="text-xs text-gray-500">
+                        {selectedGroup.admin.email}
+                      </p>
                     </div>
                     {selectedGroup.admin.isOnline && (
                       <div className="h-2 w-2 bg-green-500 rounded-full" />
@@ -146,7 +172,10 @@ export default function GroupChatArea() {
 
                   {/* Members */}
                   {selectedGroup.members.map((member) => (
-                    <div key={member._id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50">
+                    <div
+                      key={member._id}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50"
+                    >
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={member.avatar} alt={member.name} />
                         <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
@@ -184,7 +213,7 @@ export default function GroupChatArea() {
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={handleLeaveGroup}
                 className="text-red-600"
               >
@@ -203,7 +232,9 @@ export default function GroupChatArea() {
             /* Empty State */
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-16 w-16 text-gray-300 mb-4" />
-              <p className="text-gray-500 font-medium">Welcome to {selectedGroup.name}!</p>
+              <p className="text-gray-500 font-medium">
+                Welcome to {selectedGroup.name}!
+              </p>
               <p className="text-sm text-gray-400 mt-1">
                 Start chatting with your group members
               </p>
@@ -217,15 +248,24 @@ export default function GroupChatArea() {
             /* Display Messages */
             groupMessages.map((msg) => {
               const isSender = msg.sender._id === user?._id;
-              
+
               return (
                 <div
                   key={msg._id}
-                  className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${
+                    isSender ? "justify-end" : "justify-start"
+                  }`}
                 >
-                  <div className={`flex items-start space-x-2 max-w-[70%] ${isSender ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                  <div
+                    className={`flex items-start space-x-2 max-w-[70%] ${
+                      isSender ? "flex-row-reverse space-x-reverse" : ""
+                    }`}
+                  >
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={msg.sender.avatar} alt={msg.sender.name} />
+                      <AvatarImage
+                        src={msg.sender.avatar}
+                        alt={msg.sender.name}
+                      />
                       <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
                         {msg.sender.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
@@ -233,15 +273,23 @@ export default function GroupChatArea() {
                     <div>
                       <div className="flex items-baseline gap-2 mb-1">
                         <span className="text-xs font-medium text-gray-700">
-                          {isSender ? 'You' : msg.sender.name}
+                          {isSender ? "You" : msg.sender.name}
                         </span>
                         <span className="text-xs text-gray-400">
-                          {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(msg.createdAt), {
+                            addSuffix: true,
+                          })}
                         </span>
                       </div>
-                      
-                      {msg.messageType === 'file' ? (
-                        <div className={`rounded-lg p-3 ${isSender ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+
+                      {msg.messageType === "file" ? (
+                        <div
+                          className={`rounded-lg p-3 ${
+                            isSender
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
                           <div className="flex items-center space-x-2">
                             <Paperclip className="h-4 w-4" />
                             <a
@@ -261,7 +309,13 @@ export default function GroupChatArea() {
                           </div>
                         </div>
                       ) : (
-                        <div className={`rounded-lg p-3 ${isSender ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                        <div
+                          className={`rounded-lg p-3 ${
+                            isSender
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
                           {msg.content}
                         </div>
                       )}
@@ -271,18 +325,21 @@ export default function GroupChatArea() {
               );
             })
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
       {/* Input Area */}
       <div className="border-t p-4">
-        <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
+        <form
+          onSubmit={handleSendMessage}
+          className="flex items-center space-x-2"
+        >
           <Button variant="ghost" size="icon" type="button">
             <Paperclip className="h-5 w-5 text-gray-500" />
           </Button>
-          
+
           <div className="relative flex-1">
             <Input
               type="text"
@@ -292,11 +349,13 @@ export default function GroupChatArea() {
               className="pr-10"
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              <EmojiPicker onEmojiSelect={(emoji) => setMessage(prev => prev + emoji)} />
+              <EmojiPicker
+                onEmojiSelect={(emoji) => setMessage((prev) => prev + emoji)}
+              />
             </div>
           </div>
 
-          <Button 
+          <Button
             type="submit"
             disabled={!message.trim()}
             className="bg-blue-500 hover:bg-blue-600"

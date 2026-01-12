@@ -1,6 +1,6 @@
-import Message from '../models/Message.js';
-import User from '../models/User.js';
-import { isUserBlocked } from './blockController.js';
+import Message from "../models/Message.js";
+import User from "../models/User.js";
+import { isUserBlocked } from "./blockController.js";
 
 /**
  * @desc    Get conversation with a user (with pagination)
@@ -10,6 +10,15 @@ import { isUserBlocked } from './blockController.js';
 export const getMessages = async (req, res) => {
   try {
     const { userId } = req.params;
+
+    // Validate userId
+    if (!userId || userId === "undefined" || userId === "null") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
@@ -19,7 +28,7 @@ export const getMessages = async (req, res) => {
     if (!otherUser) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -38,8 +47,8 @@ export const getMessages = async (req, res) => {
         { sender: userId, receiver: req.user._id },
       ],
     })
-      .populate('sender', 'name avatar isOnline')
-      .populate('receiver', 'name avatar isOnline')
+      .populate("sender", "name avatar isOnline")
+      .populate("receiver", "name avatar isOnline")
       .sort({ createdAt: -1 }) // Newest first for pagination
       .skip(skip)
       .limit(limit);
@@ -62,10 +71,10 @@ export const getMessages = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get messages error:', error);
+    console.error("Get messages error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get messages',
+      message: "Failed to get messages",
       error: error.message,
     });
   }
@@ -87,7 +96,7 @@ export const sendMessage = async (req, res) => {
     if (!receiver) {
       return res.status(404).json({
         success: false,
-        message: 'Receiver not found',
+        message: "Receiver not found",
       });
     }
 
@@ -96,12 +105,12 @@ export const sendMessage = async (req, res) => {
     if (blocked) {
       return res.status(403).json({
         success: false,
-        message: 'Cannot send message. User is blocked or you are blocked.',
+        message: "Cannot send message. User is blocked or you are blocked.",
       });
     }
 
     // Determine message type based on file
-    let messageType = 'text';
+    let messageType = "text";
     let fileUrl = null;
     let fileName = null;
     let fileSize = null;
@@ -112,14 +121,14 @@ export const sendMessage = async (req, res) => {
       fileUrl = `/uploads/${file.filename}`;
 
       // Determine message type from mimetype
-      if (file.mimetype.startsWith('image/')) {
-        messageType = 'image';
-      } else if (file.mimetype.startsWith('video/')) {
-        messageType = 'video';
-      } else if (file.mimetype.startsWith('audio/')) {
-        messageType = 'audio';
+      if (file.mimetype.startsWith("image/")) {
+        messageType = "image";
+      } else if (file.mimetype.startsWith("video/")) {
+        messageType = "video";
+      } else if (file.mimetype.startsWith("audio/")) {
+        messageType = "audio";
       } else {
-        messageType = 'file';
+        messageType = "file";
       }
     }
 
@@ -127,7 +136,7 @@ export const sendMessage = async (req, res) => {
     const message = await Message.create({
       sender: req.user._id,
       receiver: userId,
-      content: content || '',
+      content: content || "",
       messageType,
       fileUrl,
       fileName,
@@ -135,18 +144,18 @@ export const sendMessage = async (req, res) => {
     });
 
     // Populate sender and receiver info
-    await message.populate('sender', 'name avatar isOnline');
-    await message.populate('receiver', 'name avatar isOnline');
+    await message.populate("sender", "name avatar isOnline");
+    await message.populate("receiver", "name avatar isOnline");
 
     res.status(201).json({
       success: true,
       message,
     });
   } catch (error) {
-    console.error('Send message error:', error);
+    console.error("Send message error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to send message',
+      message: "Failed to send message",
       error: error.message,
     });
   }
@@ -165,8 +174,8 @@ export const getConversations = async (req, res) => {
     const messages = await Message.find({
       $or: [{ sender: userId }, { receiver: userId }],
     })
-      .populate('sender', 'name avatar isOnline')
-      .populate('receiver', 'name avatar isOnline')
+      .populate("sender", "name avatar isOnline")
+      .populate("receiver", "name avatar isOnline")
       .sort({ createdAt: -1 });
 
     // Group by conversation partner and get latest message
@@ -192,10 +201,7 @@ export const getConversations = async (req, res) => {
       }
 
       // Count unread messages
-      if (
-        msg.receiver._id.toString() === userId.toString() &&
-        !msg.isRead
-      ) {
+      if (msg.receiver._id.toString() === userId.toString() && !msg.isRead) {
         conversationMap.get(partnerId).unreadCount++;
       }
     });
@@ -208,10 +214,10 @@ export const getConversations = async (req, res) => {
       conversations,
     });
   } catch (error) {
-    console.error('Get conversations error:', error);
+    console.error("Get conversations error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get conversations',
+      message: "Failed to get conversations",
       error: error.message,
     });
   }
@@ -243,14 +249,14 @@ export const markAsRead = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Messages marked as read',
+      message: "Messages marked as read",
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    console.error('Mark as read error:', error);
+    console.error("Mark as read error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to mark messages as read',
+      message: "Failed to mark messages as read",
       error: error.message,
     });
   }
@@ -269,7 +275,7 @@ export const addReaction = async (req, res) => {
     if (!emoji) {
       return res.status(400).json({
         success: false,
-        message: 'Emoji is required',
+        message: "Emoji is required",
       });
     }
 
@@ -277,7 +283,7 @@ export const addReaction = async (req, res) => {
     if (!message) {
       return res.status(404).json({
         success: false,
-        message: 'Message not found',
+        message: "Message not found",
       });
     }
 
@@ -289,7 +295,8 @@ export const addReaction = async (req, res) => {
     if (existingReaction) {
       // Remove reaction if already exists
       message.reactions = message.reactions.filter(
-        (r) => r.user.toString() !== req.user._id.toString() || r.emoji !== emoji
+        (r) =>
+          r.user.toString() !== req.user._id.toString() || r.emoji !== emoji
       );
     } else {
       // Remove any other reaction from this user and add new one
@@ -304,18 +311,18 @@ export const addReaction = async (req, res) => {
     }
 
     await message.save();
-    await message.populate('sender', 'name avatar isOnline');
-    await message.populate('receiver', 'name avatar isOnline');
+    await message.populate("sender", "name avatar isOnline");
+    await message.populate("receiver", "name avatar isOnline");
 
     res.status(200).json({
       success: true,
       message,
     });
   } catch (error) {
-    console.error('Add reaction error:', error);
+    console.error("Add reaction error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to add reaction',
+      message: "Failed to add reaction",
       error: error.message,
     });
   }
@@ -334,7 +341,7 @@ export const removeReaction = async (req, res) => {
     if (!message) {
       return res.status(404).json({
         success: false,
-        message: 'Message not found',
+        message: "Message not found",
       });
     }
 
@@ -344,20 +351,19 @@ export const removeReaction = async (req, res) => {
     );
 
     await message.save();
-    await message.populate('sender', 'name avatar isOnline');
-    await message.populate('receiver', 'name avatar isOnline');
+    await message.populate("sender", "name avatar isOnline");
+    await message.populate("receiver", "name avatar isOnline");
 
     res.status(200).json({
       success: true,
       message,
     });
   } catch (error) {
-    console.error('Remove reaction error:', error);
+    console.error("Remove reaction error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to remove reaction',
+      message: "Failed to remove reaction",
       error: error.message,
     });
   }
 };
-

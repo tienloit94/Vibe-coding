@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { User } from '@/types';
-import api from '@/lib/axios';
-import socketService from '@/lib/socket';
+import { create } from "zustand";
+import { User } from "@/types";
+import api from "@/lib/axios";
+import socketService from "@/lib/socket";
 
 interface AuthState {
   user: User | null;
@@ -22,66 +22,82 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email: string, password: string) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post("/auth/login", { email, password });
       const { user, token } = response.data;
-      
+
       set({ user, isAuthenticated: true, token });
-      
+
       // Connect socket with token from response
-      console.log('Login: Connecting socket with token from response');
+      console.log("Login: Connecting socket with token from response");
       if (token) {
         socketService.connect(token);
       } else {
-        console.error('No token in login response!');
+        console.error("No token in login response!");
       }
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Login failed');
+      throw new Error(error.response?.data?.message || "Login failed");
     }
   },
 
   register: async (name: string, email: string, password: string) => {
     try {
-      const response = await api.post('/auth/register', { name, email, password });
+      const response = await api.post("/auth/register", {
+        name,
+        email,
+        password,
+      });
       const { user, token } = response.data;
-      
+
       set({ user, isAuthenticated: true, token });
-      
+
       // Connect socket with token from response
-      console.log('Register: Connecting socket with token from response');
+      console.log("Register: Connecting socket with token from response");
       if (token) {
         socketService.connect(token);
       } else {
-        console.error('No token in register response!');
+        console.error("No token in register response!");
       }
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Registration failed');
+      throw new Error(error.response?.data?.message || "Registration failed");
     }
   },
 
   logout: async () => {
     try {
-      await api.post('/auth/logout');
+      await api.post("/auth/logout");
       set({ user: null, isAuthenticated: false, token: null });
       socketService.disconnect();
+
+      // Redirect to login page
+      window.location.href = "/login";
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
+      // Still clear state and redirect even on error
+      set({ user: null, isAuthenticated: false, token: null });
+      socketService.disconnect();
+      window.location.href = "/login";
     }
   },
 
   checkAuth: async () => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get("/auth/me");
       const { user, token } = response.data;
-      
+
       set({ user, isAuthenticated: true, isLoading: false, token });
-      
+
       // Connect socket if we have token
       if (token) {
-        console.log('CheckAuth: Connecting socket with token');
+        console.log("CheckAuth: Connecting socket with token");
         socketService.connect(token);
       }
     } catch (error) {
-      set({ user: null, isAuthenticated: false, isLoading: false, token: null });
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        token: null,
+      });
       socketService.disconnect();
     }
   },
