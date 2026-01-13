@@ -4,6 +4,17 @@ import FriendRequest from "../models/FriendRequest.js";
 import { containsOffensiveWords } from "../utils/contentModeration.js";
 import { createNotification } from "./notificationController.js";
 
+// Extract mentioned user IDs from content (@username format)
+const extractMentions = (content) => {
+  const mentionPattern = /@\[([^\]]+)\]\(([^\)]+)\)/g;
+  const mentions = [];
+  let match;
+  while ((match = mentionPattern.exec(content)) !== null) {
+    mentions.push(match[2]); // Extract user ID
+  }
+  return mentions;
+};
+
 // Create new post
 export const createPost = async (req, res) => {
   try {
@@ -54,10 +65,14 @@ export const createPost = async (req, res) => {
       .populate("author", "name email avatar")
       .populate("taggedUsers", "name avatar");
 
+    console.log("Post created with tagged users:", taggedUsersArray);
+
     // Send notifications to tagged users
     if (taggedUsersArray && taggedUsersArray.length > 0) {
+      console.log("Sending notifications to tagged users...");
       for (const userId of taggedUsersArray) {
         if (userId !== req.user._id.toString()) {
+          console.log(`Creating notification for user ${userId}`);
           await createNotification(
             userId,
             req.user._id,
@@ -84,17 +99,9 @@ export const getNewsFeed = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Get user's friends
-    const friendRequests = await FriendRequest.find({
-      $or: [
-        { sender: req.user._id, status: "accepted" },
-        { receiver: req.user._id, status: "accepted" },
-      ],
-    });
-
-    const friendIds = friendRequests.map((fr) =>
-      fr.sender.toString() === req.user._id.toString() ? fr.receiver : fr.sender
-    );
+    // Get user's friends from User model
+    const user = await User.findById(req.user._id).select("friends");
+    const friendIds = user.friends || [];
 
     // Add own user ID
     const userIds = [...friendIds, req.user._id];
@@ -105,6 +112,7 @@ export const getNewsFeed = async (req, res) => {
       visibility: { $in: ["public", "friends"] },
     })
       .populate("author", "name email avatar")
+      .populate("taggedUsers", "name avatar")
       .populate("comments.user", "name avatar")
       .populate("comments.replies.user", "name avatar")
       .populate("likes", "name avatar")
@@ -140,6 +148,7 @@ export const getUserPosts = async (req, res) => {
 
     const posts = await Post.find({ author: userId })
       .populate("author", "name email avatar")
+      .populate("taggedUsers", "name avatar")
       .populate("comments.user", "name avatar")
       .populate("comments.replies.user", "name avatar")
       .populate("likes", "name avatar")
@@ -186,6 +195,7 @@ export const toggleLike = async (req, res) => {
 
     const updatedPost = await Post.findById(postId)
       .populate("author", "name email avatar")
+      .populate("taggedUsers", "name avatar")
       .populate("likes", "name avatar");
 
     res.json(updatedPost);
@@ -222,6 +232,8 @@ export const addReaction = async (req, res) => {
       (r) => r.user.toString() === req.user._id.toString()
     );
 
+    const isNewReaction = existingReactionIndex === -1;
+
     if (existingReactionIndex > -1) {
       // Update existing reaction
       post.reactions[existingReactionIndex].type = type;
@@ -238,8 +250,61 @@ export const addReaction = async (req, res) => {
 
     const updatedPost = await Post.findById(postId)
       .populate("author", "name email avatar")
+      .populate("taggedUsers", "name avatar")
       .populate("likes", "name avatar")
       .populate("reactions.user", "name avatar");
+
+    // Only send notifications for new reactions, not updates
+    if (isNewReaction) {
+      const reactionMessages = {
+        like: "đã thích bài viết của bạn",
+        love: "đã yêu thích bài viết của bạn",
+        haha: "đã cảm thấy buồn cười về bài viết của bạn",
+        wow: "đã ngạc nhiên về bài viết của bạn",
+        sad: "đã cảm thấy buồn về bài viết của bạn",
+        angry: "đã phẫn nộ về bài viết của bạn",
+      };
+
+      const tagReactionMessages = {
+        like: "đã thích bài viết bạn được gắn thẻ",
+        love: "đã yêu thích bài viết bạn được gắn thẻ",
+        haha: "đã cảm thấy buồn cười về bài viết bạn được gắn thẻ",
+        wow: "đã ngạc nhiên về bài viết bạn được gắn thẻ",
+        sad: "đã cảm thấy buồn về bài viết bạn được gắn thẻ",
+        angry: "đã phẫn nộ về bài viết bạn được gắn thẻ",
+      };
+
+      // Notify post author about reaction
+      if (post.author.toString() !== req.user._id.toString()) {
+        await createNotification(
+          post.author,
+          req.user._id,
+          "reaction",
+          reactionMessages[type],
+          post._id,
+          `/home?postId=${post._id}`
+        );
+      }
+
+      // Notify tagged users about reaction on their tagged post
+      if (updatedPost.taggedUsers && updatedPost.taggedUsers.length > 0) {
+        for (const taggedUser of updatedPost.taggedUsers) {
+          if (
+            taggedUser._id.toString() !== req.user._id.toString() &&
+            taggedUser._id.toString() !== post.author.toString()
+          ) {
+            await createNotification(
+              taggedUser._id,
+              req.user._id,
+              "reaction",
+              tagReactionMessages[type],
+              post._id,
+              `/home?postId=${post._id}`
+            );
+          }
+        }
+      }
+    }
 
     res.json({
       success: true,
@@ -277,6 +342,7 @@ export const removeReaction = async (req, res) => {
 
     const updatedPost = await Post.findById(postId)
       .populate("author", "name email avatar")
+      .populate("taggedUsers", "name avatar")
       .populate("likes", "name avatar")
       .populate("reactions.user", "name avatar");
 
@@ -302,6 +368,9 @@ export const addComment = async (req, res) => {
     // Check for offensive words
     const isOffensive = containsOffensiveWords(content);
 
+    // Extract mentioned users
+    const mentionedUsers = extractMentions(content);
+
     const post = await Post.findById(postId);
 
     if (!post) {
@@ -311,16 +380,96 @@ export const addComment = async (req, res) => {
     post.comments.push({
       user: req.user._id,
       content,
+      mentionedUsers,
     });
 
     await post.save();
 
     const updatedPost = await Post.findById(postId)
       .populate("author", "name email avatar")
+      .populate("taggedUsers", "name avatar")
       .populate("comments.user", "name avatar")
+      .populate("comments.mentionedUsers", "name avatar")
       .populate("comments.replies.user", "name avatar")
+      .populate("comments.replies.mentionedUsers", "name avatar")
       .populate("likes", "name avatar")
       .populate("shares.user", "name avatar");
+    // Notify post author about comment
+    if (post.author.toString() !== req.user._id.toString()) {
+      await createNotification(
+        post.author,
+        req.user._id,
+        "comment",
+        "đã bình luận bài viết của bạn",
+        post._id,
+        `/home?postId=${post._id}`
+      );
+    }
+
+    // Notify tagged users about comment on their tagged post
+    if (updatedPost.taggedUsers && updatedPost.taggedUsers.length > 0) {
+      for (const taggedUser of updatedPost.taggedUsers) {
+        if (
+          taggedUser._id.toString() !== req.user._id.toString() &&
+          taggedUser._id.toString() !== post.author.toString()
+        ) {
+          await createNotification(
+            taggedUser._id,
+            req.user._id,
+            "comment",
+            "đã bình luận bài viết bạn được gắn thẻ",
+            post._id,
+            `/home?postId=${post._id}`
+          );
+        }
+      }
+    }
+    // Notify post author about comment
+    if (post.author.toString() !== req.user._id.toString()) {
+      await createNotification(
+        post.author,
+        req.user._id,
+        "comment",
+        "đã bình luận bài viết của bạn",
+        post._id,
+        `/home?postId=${post._id}`
+      );
+    }
+
+    // Notify tagged users about comment on their tagged post
+    if (updatedPost.taggedUsers && updatedPost.taggedUsers.length > 0) {
+      for (const taggedUser of updatedPost.taggedUsers) {
+        if (
+          taggedUser._id.toString() !== req.user._id.toString() &&
+          taggedUser._id.toString() !== post.author.toString()
+        ) {
+          await createNotification(
+            taggedUser._id,
+            req.user._id,
+            "comment",
+            "đã bình luận bài viết bạn được gắn thẻ",
+            post._id,
+            `/home?postId=${post._id}`
+          );
+        }
+      }
+    }
+
+    // Send notifications to mentioned users
+    if (mentionedUsers && mentionedUsers.length > 0) {
+      for (const userId of mentionedUsers) {
+        if (userId !== req.user._id.toString()) {
+          await createNotification(
+            userId,
+            req.user._id,
+            "comment_mention",
+            `${req.user.name} đã nhắc đến bạn trong một bình luận`,
+            post._id,
+            `/home?postId=${post._id}`
+          );
+        }
+      }
+    }
 
     // Return warning if offensive
     if (isOffensive) {
@@ -430,37 +579,65 @@ export const replyToComment = async (req, res) => {
     const { postId, commentId } = req.params;
     const { content } = req.body;
 
+    console.log("Reply to comment:", {
+      postId,
+      commentId,
+      content,
+      hasFile: !!req.file,
+    });
+
     // Handle image upload
     let imagePath = null;
     if (req.file) {
       imagePath = `/uploads/${req.file.filename}`;
     }
 
+    // Extract mentioned users
+    const mentionedUsers = extractMentions(content);
+
     const post = await Post.findById(postId);
     if (!post) {
+      console.log("Post not found:", postId);
       return res.status(404).json({ message: "Post not found" });
     }
 
     const comment = post.comments.id(commentId);
     if (!comment) {
+      console.log("Comment not found:", commentId);
       return res.status(404).json({ message: "Comment not found" });
     }
+
+    console.log("Adding reply to comment:", {
+      commentId,
+      userId: req.user._id,
+    });
 
     comment.replies.push({
       user: req.user._id,
       content,
       image: imagePath,
+      mentionedUsers,
     });
 
     await post.save();
 
+    console.log("Reply saved successfully, fetching updated post...");
+
     const updatedPost = await Post.findById(postId)
       .populate("author", "name email avatar")
+      .populate("taggedUsers", "name avatar")
       .populate("comments.user", "name avatar")
+      .populate("comments.mentionedUsers", "name avatar")
       .populate("comments.replies.user", "name avatar")
+      .populate("comments.replies.mentionedUsers", "name avatar")
       .populate("likes", "name avatar");
 
-    // Create notification
+    console.log(
+      "Updated post fetched, replies count:",
+      updatedPost.comments.id(commentId)?.replies?.length
+    );
+
+    // Create notification for comment author
     if (comment.user.toString() !== req.user._id.toString()) {
       await createNotification(
         comment.user,
@@ -472,10 +649,27 @@ export const replyToComment = async (req, res) => {
       );
     }
 
+    // Send notifications to mentioned users
+    if (mentionedUsers && mentionedUsers.length > 0) {
+      for (const userId of mentionedUsers) {
+        if (userId !== req.user._id.toString()) {
+          await createNotification(
+            userId,
+            req.user._id,
+            "reply_mention",
+            `${req.user.name} đã nhắc đến bạn trong một trả lời`,
+            post._id,
+            `/home?postId=${post._id}`
+          );
+        }
+      }
+    }
+
+    console.log("Reply completed successfully, sending response");
     res.json({ post: updatedPost });
   } catch (error) {
     console.error("Error replying to comment:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 

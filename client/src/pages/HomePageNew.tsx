@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Clock,
   Loader2,
+  UserPlus,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -29,6 +30,7 @@ import ReactionPicker, {
 } from "@/components/post/ReactionPicker";
 import CreateSocialGroup from "@/components/groups/CreateSocialGroup";
 import StoriesBar from "@/components/story/StoriesBar";
+import TagInput from "@/components/ui/TagInput";
 import socketService from "@/lib/socket";
 import {
   playMessageSound,
@@ -37,6 +39,7 @@ import {
 } from "@/lib/notificationSound";
 import { Message } from "@/types";
 import imageCompression from "browser-image-compression";
+import { getAssetUrl, getApiUrl } from "@/lib/config";
 import {
   Select,
   SelectContent,
@@ -44,6 +47,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type SortType = "chronological" | "edgerank";
 
@@ -53,6 +63,10 @@ export default function HomePageNew() {
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [videoPreview, setVideoPreview] = useState<string>("");
+  const [taggedFriends, setTaggedFriends] = useState<
+    Array<{ _id: string; name: string; avatar?: string }>
+  >([]);
+  const [showTagModal, setShowTagModal] = useState(false);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>(
     {}
   );
@@ -262,6 +276,14 @@ export default function HomePageNew() {
       const formData = new FormData();
       formData.append("content", postContent);
 
+      // Add tagged friends
+      if (taggedFriends.length > 0) {
+        formData.append(
+          "taggedUsers",
+          JSON.stringify(taggedFriends.map((f) => f._id))
+        );
+      }
+
       if (selectedVideo) {
         formData.append("video", selectedVideo);
       } else {
@@ -276,6 +298,8 @@ export default function HomePageNew() {
       setSelectedVideo(null);
       setImagePreviews([]);
       setVideoPreview("");
+      setTaggedFriends([]);
+      setShowTagModal(false);
       toast.success("Đã đăng bài!");
     } catch (error) {
       toast.error("Đăng bài thất bại");
@@ -331,7 +355,7 @@ export default function HomePageNew() {
   const handleCommentLike = async (postId: string, commentId: string) => {
     try {
       const response = await fetch(
-        `http://localhost:5000/api/posts/${postId}/comment/${commentId}/like`,
+        getApiUrl(`api/posts/${postId}/comment/${commentId}/like`),
         {
           method: "POST",
           credentials: "include",
@@ -360,8 +384,15 @@ export default function HomePageNew() {
         formData.append("image", image);
       }
 
+      console.log("Sending reply:", {
+        postId,
+        commentId,
+        content,
+        hasImage: !!image,
+      });
+
       const response = await fetch(
-        `http://localhost:5000/api/posts/${postId}/comment/${commentId}/reply`,
+        getApiUrl(`api/posts/${postId}/comment/${commentId}/reply`),
         {
           method: "POST",
           credentials: "include",
@@ -369,25 +400,29 @@ export default function HomePageNew() {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to reply");
+      console.log("Reply response:", response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error("Reply error:", errorData);
+        throw new Error(errorData?.message || "Failed to reply");
+      }
 
       toast.success("Phản hồi đã được đăng");
       // Refresh feed to get updated data
       fetchFeed();
-    } catch (error) {
-      toast.error("Không thể gửi phản hồi");
+    } catch (error: any) {
+      console.error("Reply error:", error);
+      toast.error(error.message || "Không thể gửi phản hồi");
     }
   };
 
   const handleShare = async (postId: string) => {
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/posts/${postId}/share`,
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
+      const response = await fetch(getApiUrl(`api/posts/${postId}/share`), {
+        method: "POST",
+        credentials: "include",
+      });
 
       if (!response.ok) throw new Error("Failed to share post");
 
@@ -463,6 +498,36 @@ export default function HomePageNew() {
           }
           className="mb-3 min-h-[100px] resize-none border-0 focus-visible:ring-0 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
         />
+
+        {/* Tagged Friends Display */}
+        {taggedFriends.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {taggedFriends.map((friend) => (
+              <div
+                key={friend._id}
+                className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full text-sm"
+              >
+                <Avatar className="h-5 w-5">
+                  <AvatarImage src={getAssetUrl(friend.avatar)} />
+                  <AvatarFallback className="text-xs">
+                    {friend.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span>{friend.name}</span>
+                <button
+                  onClick={() =>
+                    setTaggedFriends(
+                      taggedFriends.filter((f) => f._id !== friend._id)
+                    )
+                  }
+                  className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Image Previews */}
         {imagePreviews.length > 0 && (
@@ -545,6 +610,36 @@ export default function HomePageNew() {
               <VideoIcon className="mr-2 h-4 w-4" />
               Video
             </Button>
+            <Dialog open={showTagModal} onOpenChange={setShowTagModal}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Gắn thẻ ({taggedFriends.length})
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="dark:bg-gray-800">
+                <DialogHeader>
+                  <DialogTitle className="dark:text-white">
+                    Gắn thẻ bạn bè
+                  </DialogTitle>
+                </DialogHeader>
+                <TagInput
+                  selectedFriends={taggedFriends}
+                  onAddFriend={(friend) =>
+                    setTaggedFriends([...taggedFriends, friend])
+                  }
+                  onRemoveFriend={(friendId) =>
+                    setTaggedFriends(
+                      taggedFriends.filter((f) => f._id !== friendId)
+                    )
+                  }
+                />
+              </DialogContent>
+            </Dialog>
           </div>
           <Button
             onClick={handleCreatePost}
@@ -598,6 +693,20 @@ export default function HomePageNew() {
                     <div>
                       <p className="font-semibold dark:text-white">
                         {post.author.name}
+                        {post.taggedUsers && post.taggedUsers.length > 0 && (
+                          <span className="font-normal text-gray-600 dark:text-gray-400">
+                            {" "}
+                            cùng với{" "}
+                            {post.taggedUsers.map((user: any, idx: number) => (
+                              <span key={user._id}>
+                                <span className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+                                  {user.name}
+                                </span>
+                                {idx < post.taggedUsers.length - 1 && ", "}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {formatDistanceToNow(new Date(post.createdAt), {
@@ -618,17 +727,14 @@ export default function HomePageNew() {
                 {post.video && (
                   <div className="mb-3">
                     <video
-                      src={`http://localhost:5000${post.video}`}
+                      src={getAssetUrl(post.video)}
                       controls
                       className="w-full rounded-lg max-h-96"
                       playsInline
                       preload="metadata"
                       onError={(e) => {
                         console.error("Video error:", e);
-                        console.error(
-                          "Video src:",
-                          `http://localhost:5000${post.video}`
-                        );
+                        console.error("Video src:", getAssetUrl(post.video));
                       }}
                     />
                   </div>
@@ -640,7 +746,7 @@ export default function HomePageNew() {
                     {post.images.map((img: string, idx: number) => (
                       <img
                         key={idx}
-                        src={`http://localhost:5000${img}`}
+                        src={getAssetUrl(img)}
                         alt="Post"
                         className="w-full rounded-lg object-cover"
                       />

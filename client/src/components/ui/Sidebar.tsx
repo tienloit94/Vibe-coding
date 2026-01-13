@@ -7,6 +7,7 @@ import {
   User,
   Film,
   UsersRound,
+  ShoppingBag,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useChatStore } from "@/store/chatStore";
@@ -33,6 +34,7 @@ export default function Sidebar() {
       badge: totalUnread,
     },
     { name: "Reels", href: "/reels", icon: Film, badge: 0 },
+    { name: "Chợ", href: "/marketplace", icon: ShoppingBag, badge: 0 },
     { name: "Nhóm", href: "/groups", icon: UsersRound, badge: 0 },
     { name: t("friends"), href: "/friends", icon: Users, badge: 0 },
     {

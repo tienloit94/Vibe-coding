@@ -12,6 +12,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ChatPage from "./pages/ChatPage";
 import HomePageNew from "./pages/HomePageNew";
 import ReelsPage from "./pages/ReelsPage";
@@ -22,6 +23,7 @@ import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
 import GroupManagementPage from "./pages/GroupManagementPage";
 import SettingsPage from "./pages/SettingsPage";
+import MarketplacePage from "./pages/MarketplacePage";
 import MainLayout from "./layouts/MainLayout";
 
 function App() {
@@ -70,6 +72,16 @@ function App() {
                 )
               }
             />
+            <Route
+              path="/reset-password/:token"
+              element={
+                isAuthenticated ? (
+                  <Navigate to="/home" />
+                ) : (
+                  <ResetPasswordPage />
+                )
+              }
+            />
 
             {/* Protected routes with MainLayout */}
             <Route
@@ -87,6 +99,7 @@ function App() {
                 element={<GroupManagementPage />}
               />
               <Route path="/friends" element={<FriendsPage />} />
+              <Route path="/marketplace" element={<MarketplacePage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/:userId" element={<ProfilePage />} />

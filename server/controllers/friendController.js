@@ -1,5 +1,6 @@
 import FriendRequest from "../models/FriendRequest.js";
 import User from "../models/User.js";
+import { createNotification } from "./notificationController.js";
 
 /**
  * @desc    Send friend request
@@ -58,6 +59,16 @@ export const sendFriendRequest = async (req, res) => {
 
     await friendRequest.populate("sender", "name email avatar");
     await friendRequest.populate("receiver", "name email avatar");
+
+    // Create notification
+    await createNotification(
+      userId,
+      req.user._id,
+      "friend_request",
+      `${req.user.name} đã gửi lời mời kết bạn`,
+      friendRequest._id,
+      "/friends"
+    );
 
     // Emit socket event to receiver
     const io = req.app.get("io");
@@ -172,6 +183,16 @@ export const acceptFriendRequest = async (req, res) => {
     await friendRequest.populate("sender", "name email avatar isOnline");
     await friendRequest.populate("receiver", "name email avatar isOnline");
 
+    // Create notification for sender
+    await createNotification(
+      friendRequest.sender._id,
+      req.user._id,
+      "friend_accept",
+      `${req.user.name} đã chấp nhận lời mời kết bạn`,
+      friendRequest._id,
+      "/friends"
+    );
+
     // Emit socket event to sender
     const io = req.app.get("io");
     const connectedUsers = req.app.get("connectedUsers");
@@ -262,6 +283,10 @@ export const getFriends = async (req, res) => {
       "name email avatar isOnline lastSeen"
     );
 
+    console.log("getFriends - User ID:", req.user._id);
+    console.log("getFriends - Friends count:", user.friends.length);
+    console.log("getFriends - Friends:", user.friends);
+
     res.status(200).json({
       success: true,
       count: user.friends.length,
@@ -313,6 +338,39 @@ export const searchUsers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to search users",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Remove friend (unfriend)
+ * @route   DELETE /api/friends/:friendId
+ * @access  Private
+ */
+export const removeFriend = async (req, res) => {
+  try {
+    const { friendId } = req.params;
+
+    // Remove friend from current user's friends list
+    await User.findByIdAndUpdate(req.user._id, {
+      $pull: { friends: friendId },
+    });
+
+    // Remove current user from friend's friends list
+    await User.findByIdAndUpdate(friendId, {
+      $pull: { friends: req.user._id },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Friend removed successfully",
+    });
+  } catch (error) {
+    console.error("Remove friend error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to remove friend",
       error: error.message,
     });
   }

@@ -8,6 +8,8 @@ import {
   forgotPassword,
   verifyResetCode,
   resetPassword,
+  resetPasswordWithToken,
+  verifyResetToken,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/auth.js";
 import { validate, registerSchema, loginSchema } from "../validators/index.js";
@@ -20,6 +22,8 @@ router.post("/login", validate(loginSchema), login);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-reset-code", verifyResetCode);
 router.post("/reset-password", resetPassword);
+router.post("/reset-password-token", resetPasswordWithToken);
+router.get("/verify-reset-token/:token", verifyResetToken);
 
 // Private routes
 router.post("/logout", protect, logout);

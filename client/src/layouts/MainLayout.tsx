@@ -35,12 +35,16 @@ import Sidebar from "@/components/ui/Sidebar";
 import RightWidget from "@/components/ui/RightWidget";
 import SearchBar from "@/components/ui/SearchBar";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import socketService from "@/lib/socket";
+import { useNotificationStore } from "@/store/notificationStore";
+import { toast } from "sonner";
 
 export default function MainLayout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { conversations, fetchConversations } = useChatStore();
   const { friendRequests, fetchFriendRequests, getFriends } = useFriendStore();
+  const { addNotification } = useNotificationStore();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [miniChatUserId, setMiniChatUserId] = useState<string | null>(null);
@@ -56,6 +60,36 @@ export default function MainLayout() {
     fetchFriendRequests();
     getFriends();
   }, [fetchConversations, fetchFriendRequests, getFriends]);
+
+  // Setup notification socket listener
+  useEffect(() => {
+    const socket = socketService.getSocket();
+    console.log(
+      "MainLayout - Socket instance:",
+      socket ? "Connected" : "Not connected"
+    );
+
+    if (!socket) return;
+
+    const handleNotification = (notification: any) => {
+      console.log("🔔 Received notification:", notification);
+      addNotification(notification);
+
+      // Show toast notification
+      toast.info(notification.message, {
+        description: notification.sender?.name,
+        duration: 5000,
+      });
+    };
+
+    console.log("MainLayout - Setting up notification-received listener");
+    socket.on("notification-received", handleNotification);
+
+    return () => {
+      console.log("MainLayout - Cleaning up notification-received listener");
+      socket.off("notification-received", handleNotification);
+    };
+  }, [addNotification]);
 
   // Calculate total unread messages
   const totalUnread = conversations.reduce(
@@ -150,13 +184,13 @@ export default function MainLayout() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{t("language")}</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => changeLanguage("vi")}>
-                  🇻🇳 Tiếng Việt
+                  <span className="mr-2">🇻🇳</span> Tiếng Việt
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => changeLanguage("en")}>
-                  🇬🇧 English
+                  <span className="mr-2">🇬🇧</span> English
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => changeLanguage("ja")}>
-                  🇯🇵 日本語
+                  <span className="mr-2">🇯🇵</span> 日本語
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

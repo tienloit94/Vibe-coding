@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocialNet | Messages</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400,0..1,0" rel="stylesheet" />
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#00ccaa",
+                        "primary-hover": "#00b395",
+                        bg: "#0f2420",
+                        surface: "#173630", 
+                        border: "#2e6b61",
+                        text: "#f9fafa",
+                        muted: "#8dcec3",
+                        bubble: "#1c423b" // Specific color for incoming messages
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0f2420;
+            background-image: 
+                radial-gradient(circle at 0% 50%, rgba(0, 204, 170, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 100% 0%, rgba(0, 204, 170, 0.08) 0%, transparent 40%);
+            font-family: "Plus Jakarta Sans", sans-serif;
+        }
+
+        /* Glassmorphism Classes */
+        .glass-panel {
+            background: rgba(15, 36, 32, 0.85);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid rgba(46, 107, 97, 0.3);
+        }
+
+        .glass-header {
+            background: rgba(15, 36, 32, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(46, 107, 97, 0.3);
+        }
+
+        .glass-input {
+            background: rgba(23, 54, 48, 0.7);
+            backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(46, 107, 97, 0.3);
+        }
+
+        /* Message Bubbles */
+        .msg-in {
+            border-bottom-left-radius: 4px;
+        }
+        .msg-out {
+            border-bottom-right-radius: 4px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(46, 107, 97, 0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00ccaa; }
+
+        .material-symbols-outlined { vertical-align: middle; }
+    </style>
+</head>
+
+<body class="text-text h-screen flex overflow-hidden selection:bg-primary selection:text-bg">
+
+    <nav class="w-20 glass-panel flex flex-col items-center py-6 shrink-0 z-20">
+        <a href="newsfeed.html" class="mb-8 text-primary hover:scale-110 transition-transform duration-300">
+            <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13.8261 17.4264C16.7203 18.1174 20.2244 18.5217 24 18.5217C27.7756 18.5217 31.2797 18.1174 34.1739 17.4264C36.9144 16.7722 39.9967 15.2331 41.3563 14.1648L24.8486 40.6391C24.4571 41.267 23.5429 41.267 23.1514 40.6391L6.64374 14.1648C8.00331 15.2331 11.0856 16.7722 13.8261 17.4264Z" fill="currentColor"></path>
+            </svg>
+        </a>
+
+        <div class="flex flex-col gap-6 w-full items-center">
+            <a href="newsfeed.html" class="p-3 rounded-xl text-muted hover:bg-white/5 hover:text-text transition-colors" title="Feed">
+                <span class="material-symbols-outlined">grid_view</span>
+            </a>
+            <a href="#" class="p-3 rounded-xl bg-primary/20 text-primary shadow-[0_0_15px_rgba(0,204,170,0.3)] transition-colors" title="Messages">
+                <span class="material-symbols-outlined font-variation-settings-fill">chat_bubble</span>
+            </a>
+            <a href="friends.html" class="p-3 rounded-xl text-muted hover:bg-white/5 hover:text-text transition-colors" title="Friends">
+                <span class="material-symbols-outlined">group</span>
+            </a>
+            <a href="#" class="p-3 rounded-xl text-muted hover:bg-white/5 hover:text-text transition-colors" title="Settings">
+                <span class="material-symbols-outlined">settings</span>
+            </a>
+        </div>
+
+        <div class="mt-auto">
+            <div class="size-10 rounded-full bg-cover bg-center ring-2 ring-primary/30 cursor-pointer hover:ring-primary transition-all" style="background-image: url('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&h=100')"></div>
+        </div>
+    </nav>
+
+    <aside class="w-80 glass-panel flex flex-col shrink-0 z-10 hidden md:flex">
+        <div class="p-6 pb-4">
+            <h1 class="text-2xl font-bold mb-4 text-text">Messages</h1>
+            <div class="relative group">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-primary transition-colors">search</span>
+                <input class="w-full bg-surface/40 border border-transparent rounded-xl py-2.5 pl-10 pr-4 focus:ring-1 focus:ring-primary focus:border-primary/50 focus:bg-surface outline-none text-sm text-text placeholder-muted transition-all" placeholder="Search chats..." type="text"/>
+            </div>
+        </div>
+
+        <div class="flex px-6 gap-6 border-b border-border/30 mb-2">
+            <button class="pb-3 border-b-2 border-primary text-primary font-bold text-sm">All Chats</button>
+            <button class="pb-3 border-b-2 border-transparent text-muted hover:text-text font-medium text-sm transition-colors">Groups</button>
+            <button class="pb-3 border-b-2 border-transparent text-muted hover:text-text font-medium text-sm transition-colors">Archived</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-2 py-2 space-y-1">
+            
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 cursor-pointer">
+                <div class="relative shrink-0">
+                    <div class="size-12 rounded-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&h=100');"></div>
+                    <div class="absolute bottom-0 right-0 size-3 bg-green-500 border-2 border-surface rounded-full"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-baseline mb-0.5">
+                        <span class="font-bold text-text truncate">Sarah Miller</span>
+                        <span class="text-xs text-primary font-bold">10:45 AM</span>
+                    </div>
+                    <p class="text-sm text-text/80 truncate font-medium">Can you send the design files?</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group">
+                <div class="relative shrink-0">
+                    <div class="size-12 rounded-full bg-surface flex items-center justify-center border border-border/50 text-muted group-hover:text-text group-hover:border-primary/50 transition-colors">
+                        <span class="material-symbols-outlined">groups</span>
+                    </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-baseline mb-0.5">
+                        <span class="font-bold text-text truncate">Design Team</span>
+                        <span class="text-xs text-muted">9:12 AM</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-sm text-muted">
+                        <span class="text-primary font-bold text-xs">Liam:</span>
+                        <span class="truncate">Updated the moodboard 🎨</span>
+                    </div>
+                </div>
+                <div class="size-5 bg-primary rounded-full flex items-center justify-center shrink-0">
+                    <span class="text-[10px] text-bg font-bold">3</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors">
+                <div class="relative shrink-0">
+                    <div class="size-12 rounded-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=100&h=100');"></div>
+                    <div class="absolute bottom-0 right-0 size-3 bg-gray-500 border-2 border-surface rounded-full"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-baseline mb-0.5">
+                        <span class="font-bold text-text truncate">Alex Rivera</span>
+                        <span class="text-xs text-muted">Yesterday</span>
+                    </div>
+                    <p class="text-sm text-muted truncate">See you at the meeting.</p>
+                </div>
+            </div>
+
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative min-w-0 bg-bg/50">
+        
+        <header class="h-16 glass-header px-6 flex items-center justify-between shrink-0 z-10">
+            <div class="flex items-center gap-4">
+                <button class="md:hidden text-muted hover:text-text"><span class="material-symbols-outlined">arrow_back</span></button>
+                <div class="relative">
+                    <div class="size-10 rounded-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&h=100');"></div>
+                    <div class="absolute bottom-0 right-0 size-2.5 bg-green-500 border-2 border-surface rounded-full"></div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-text leading-tight">Sarah Miller</h3>
+                    <p class="text-xs text-primary font-bold">Online</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-1">
+                <button class="size-10 rounded-full hover:bg-white/5 text-muted hover:text-primary transition-colors flex items-center justify-center">
+                    <span class="material-symbols-outlined">call</span>
+                </button>
+                <button class="size-10 rounded-full hover:bg-white/5 text-muted hover:text-primary transition-colors flex items-center justify-center">
+                    <span class="material-symbols-outlined">videocam</span>
+                </button>
+                <button class="size-10 rounded-full hover:bg-white/5 text-muted hover:text-primary transition-colors flex items-center justify-center">
+                    <span class="material-symbols-outlined">info</span>
+                </button>
+            </div>
+        </header>
+
+        <div id="chat-container" class="flex-1 overflow-y-auto p-6 flex flex-col gap-6 scroll-smooth">
+            
+            <div class="flex justify-center my-2">
+                <span class="px-3 py-1 bg-surface/50 border border-border/30 rounded-full text-[10px] font-bold text-muted uppercase tracking-wider backdrop-blur-sm">Today</span>
+            </div>
+
+            <div class="flex gap-3 max-w-2xl">
+                <div class="size-8 rounded-full bg-cover bg-center shrink-0 mt-auto" style="background-image: url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&h=100');"></div>
+                <div class="flex flex-col gap-1">
+                    <div class="bg-bubble p-4 rounded-2xl msg-in shadow-sm text-text/90 text-sm leading-relaxed border border-border/20">
+                        Hi Alex! 👋 I've just finished the preliminary wireframes for the new dashboard. Would you like to take a look?
+                    </div>
+                    <span class="text-[10px] text-muted font-medium ml-1">10:42 AM</span>
+                </div>
+            </div>
+
+            <div class="flex flex-row-reverse gap-3 ml-auto max-w-2xl">
+                <div class="flex flex-col items-end gap-1">
+                    <div class="bg-primary p-4 rounded-2xl msg-out shadow-[0_4px_15px_rgba(0,204,170,0.2)] text-[#0f2420] text-sm font-medium leading-relaxed">
+                        That's great Sarah! Yes, please share the Figma link. I have some time now to review them.
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="text-[10px] text-muted font-medium">10:44 AM</span>
+                        <span class="material-symbols-outlined text-primary text-[14px]">done_all</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 max-w-2xl">
+                <div class="size-8 rounded-full bg-cover bg-center shrink-0 mt-auto" style="background-image: url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&h=100');"></div>
+                <div class="flex flex-col gap-1">
+                    <div class="bg-bubble p-3 rounded-2xl msg-in shadow-sm border border-border/20 flex items-center gap-3 pr-5 hover:border-primary/40 transition-colors cursor-pointer group">
+                        <div class="size-10 bg-surface rounded-lg flex items-center justify-center text-primary border border-border/30 group-hover:scale-105 transition-transform">
+                            <span class="material-symbols-outlined">description</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-text truncate max-w-[150px]">dashboard_spec_v2.pdf</span>
+                            <span class="text-[10px] text-muted">2.4 MB • PDF</span>
+                        </div>
+                        <span class="material-symbols-outlined text-muted group-hover:text-primary ml-2">download</span>
+                    </div>
+                    <span class="text-[10px] text-muted font-medium ml-1">10:46 AM</span>
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="p-4 pt-2 glass-input shrink-0 z-20">
+            <form onsubmit="sendMessage(event)" class="bg-surface/50 border border-border/40 rounded-2xl p-2 flex items-end gap-2 shadow-lg backdrop-blur-md">
+                <div class="flex items-center gap-1 mb-1">
+                    <button type="button" class="size-10 flex items-center justify-center text-muted hover:text-primary hover:bg-white/5 rounded-xl transition-all">
+                        <span class="material-symbols-outlined">sentiment_satisfied</span>
+                    </button>
+                    <button type="button" class="size-10 flex items-center justify-center text-muted hover:text-primary hover:bg-white/5 rounded-xl transition-all">
+                        <span class="material-symbols-outlined">attach_file</span>
+                    </button>
+                </div>
+                
+                <textarea id="msg-input" class="flex-1 bg-transparent border-none focus:ring-0 resize-none py-3 text-sm text-text placeholder-muted/60 max-h-32" placeholder="Type a message..." rows="1" style="min-height: 44px;"></textarea>
+                
+                <div class="flex items-center gap-2 mb-1 mr-1">
+                    <button type="submit" class="size-10 flex items-center justify-center bg-primary text-[#0f2420] rounded-xl hover:bg-primary-hover hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20">
+                        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">send</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </main>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const msgInput = document.getElementById('msg-input');
+
+        // Auto-resize textarea
+        msgInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        function sendMessage(e) {
+            e.preventDefault();
+            const text = msgInput.value.trim();
+            if (!text) return;
+
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Create Message HTML
+            const html = `
+                <div class="flex flex-row-reverse gap-3 ml-auto max-w-2xl animate-[slideUp_0.3s_ease-out]">
+                    <div class="flex flex-col items-end gap-1">
+                        <div class="bg-primary p-4 rounded-2xl msg-out shadow-[0_4px_15px_rgba(0,204,170,0.2)] text-[#0f2420] text-sm font-medium leading-relaxed">
+                            ${text}
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-[10px] text-muted font-medium">${time}</span>
+                            <span class="material-symbols-outlined text-primary text-[14px]">done</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Append & Scroll
+            chatContainer.insertAdjacentHTML('beforeend', html);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Reset Input
+            msgInput.value = '';
+            msgInput.style.height = '44px';
+        }
+
+        // Initial scroll to bottom
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    </script>
+</body>
+</html>

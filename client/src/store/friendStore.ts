@@ -42,6 +42,7 @@ interface FriendStore {
   acceptRequest: (requestId: string) => Promise<void>; // Alias
   rejectFriendRequest: (requestId: string) => Promise<void>;
   rejectRequest: (requestId: string) => Promise<void>; // Alias
+  removeFriend: (friendId: string) => Promise<void>;
   clearSearchResults: () => void;
   setError: (error: string | null) => void;
 
@@ -70,7 +71,10 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
         withCredentials: true,
       });
 
+      console.log("getFriends response:", response.data);
+
       if (response.data.success) {
+        console.log("Setting friends:", response.data.friends);
         set({ friends: response.data.friends });
       }
     } catch (error: any) {
@@ -212,6 +216,31 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
         error.response?.data?.message || "Failed to reject friend request";
       set({ error: message });
       console.error("Reject friend request error:", error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  removeFriend: async (friendId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await axios.delete(
+        `${API_URL}/api/friends/${friendId}`,
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        // Remove from friends list
+        set((state) => ({
+          friends: state.friends.filter((f) => f._id !== friendId),
+        }));
+      }
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message || "Failed to remove friend";
+      set({ error: message });
+      console.error("Remove friend error:", error);
+      throw error;
     } finally {
       set({ loading: false });
     }

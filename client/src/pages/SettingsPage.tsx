@@ -10,16 +10,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, User, Bell, Shield } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Lock, User, Bell, Shield, Globe, Palette } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 import { getApiUrl } from "@/lib/config";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { theme, toggleTheme } = useTheme();
+  const { t, i18n } = useTranslation();
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+    localStorage.setItem("language", lng);
+    toast.success("Đã thay đổi ngôn ngữ");
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +90,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="security" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile" className="gap-2">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Hồ sơ</span>
@@ -79,6 +98,10 @@ export default function SettingsPage() {
           <TabsTrigger value="security" className="gap-2">
             <Lock className="h-4 w-4" />
             <span className="hidden sm:inline">Bảo mật</span>
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="gap-2">
+            <Palette className="h-4 w-4" />
+            <span className="hidden sm:inline">Giao diện</span>
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="h-4 w-4" />
@@ -116,6 +139,65 @@ export default function SettingsPage() {
                 <Input id="bio" placeholder="Giới thiệu về bạn" />
               </div>
               <Button>Lưu thay đổi</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="appearance" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Giao diện</CardTitle>
+              <CardDescription>
+                Tùy chỉnh giao diện ứng dụng theo sở thích của bạn
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Chế độ tối</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {theme === "dark" ? "Đang bật" : "Đang tắt"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={theme === "dark"}
+                    onCheckedChange={toggleTheme}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="language">Ngôn ngữ</Label>
+                  <Select value={i18n.language} onValueChange={changeLanguage}>
+                    <SelectTrigger id="language" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vi">
+                        <div className="flex items-center gap-2">
+                          <span>🇻🇳</span>
+                          <span>Tiếng Việt</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="en">
+                        <div className="flex items-center gap-2">
+                          <span>🇬🇧</span>
+                          <span>English</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="ja">
+                        <div className="flex items-center gap-2">
+                          <span>🇯🇵</span>
+                          <span>日本語</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Chọn ngôn ngữ hiển thị cho ứng dụng
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -28,6 +28,7 @@ import noteRoutes from "./routes/noteRoutes.js";
 import blockRoutes from "./routes/blockRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
 import storyRoutes from "./routes/storyRoutes.js";
 
 // Import middleware
@@ -80,23 +81,39 @@ app.use(cookieParser());
 app.use(
   "/uploads",
   (req, res, next) => {
-    // Set proper MIME types for videos
-    if (req.path.match(/\.(mp4|webm|ogg)$/i)) {
+    // Set CORS headers for media files
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Range");
+    res.setHeader(
+      "Access-Control-Expose-Headers",
+      "Content-Length, Content-Range, Accept-Ranges"
+    );
+
+    // Set proper MIME types for videos based on extension
+    const ext = path.extname(req.path).toLowerCase();
+    if (ext === ".mp4") {
       res.setHeader("Content-Type", "video/mp4");
       res.setHeader("Accept-Ranges", "bytes");
-    } else if (req.path.match(/\.(mov)$/i)) {
+    } else if (ext === ".webm") {
+      res.setHeader("Content-Type", "video/webm");
+      res.setHeader("Accept-Ranges", "bytes");
+    } else if (ext === ".ogg" || ext === ".ogv") {
+      res.setHeader("Content-Type", "video/ogg");
+      res.setHeader("Accept-Ranges", "bytes");
+    } else if (ext === ".mov") {
       res.setHeader("Content-Type", "video/quicktime");
       res.setHeader("Accept-Ranges", "bytes");
-    } else if (req.path.match(/\.(avi)$/i)) {
+    } else if (ext === ".avi") {
       res.setHeader("Content-Type", "video/x-msvideo");
       res.setHeader("Accept-Ranges", "bytes");
-    } else if (req.path.match(/\.(mkv)$/i)) {
+    } else if (ext === ".mkv") {
       res.setHeader("Content-Type", "video/x-matroska");
       res.setHeader("Accept-Ranges", "bytes");
-    } else if (req.path.match(/\.(wmv)$/i)) {
+    } else if (ext === ".wmv") {
       res.setHeader("Content-Type", "video/x-ms-wmv");
       res.setHeader("Accept-Ranges", "bytes");
-    } else if (req.path.match(/\.(flv)$/i)) {
+    } else if (ext === ".flv") {
       res.setHeader("Content-Type", "video/x-flv");
       res.setHeader("Accept-Ranges", "bytes");
     }
@@ -128,6 +145,7 @@ app.use("/api/notes", noteRoutes);
 app.use("/api/block", blockRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/products", productRoutes);
 
 // Error handling middleware (must be last)
 app.use(notFound);

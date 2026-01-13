@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, UserPlus, Hash } from "lucide-react";
+import {
+  TrendingUp,
+  UserPlus,
+  Hash,
+  ChevronLeft,
+  ChevronRight,
+  ShoppingBag,
+} from "lucide-react";
 import { useFriendStore } from "@/store/friendStore";
+import { useProductStore, Product } from "@/store/productStore";
 import { toast } from "sonner";
 import axios from "axios";
-import { getApiUrl } from "@/lib/config";
+import { getApiUrl, getAssetUrl } from "@/lib/config";
 
 interface TrendingTopic {
   tag: string;
@@ -15,14 +24,25 @@ interface TrendingTopic {
 
 export default function RightWidget() {
   const { friends, onlineUsers, getFriends } = useFriendStore();
+  const { fetchFeaturedProducts } = useProductStore();
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [trending, setTrending] = useState<TrendingTopic[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [currentProductIndex, setCurrentProductIndex] = useState(0);
 
   useEffect(() => {
     getFriends();
     fetchSuggestions();
-    fetchTrending();
+    loadFeaturedProducts();
   }, [getFriends]);
+
+  const loadFeaturedProducts = async () => {
+    try {
+      const products = await fetchFeaturedProducts(5);
+      setFeaturedProducts(products);
+    } catch (error) {
+      console.error("Failed to fetch featured products:", error);
+    }
+  };
 
   const fetchSuggestions = async () => {
     try {
@@ -35,15 +55,14 @@ export default function RightWidget() {
     }
   };
 
-  const fetchTrending = async () => {
-    // Mock data - sẽ implement API sau
-    setTrending([
-      { tag: "#TetNguyenDan", count: 1250 },
-      { tag: "#TechNews", count: 890 },
-      { tag: "#COVID19", count: 756 },
-      { tag: "#Football", count: 654 },
-      { tag: "#Music", count: 543 },
-    ]);
+  const nextProduct = () => {
+    setCurrentProductIndex((prev) => (prev + 1) % featuredProducts.length);
+  };
+
+  const prevProduct = () => {
+    setCurrentProductIndex((prev) =>
+      prev === 0 ? featuredProducts.length - 1 : prev - 1
+    );
   };
 
   const handleAddFriend = async (userId: string) => {
@@ -149,33 +168,110 @@ export default function RightWidget() {
         </Card>
       )}
 
-      {/* Xu hướng - Trending Topics */}
-      <Card className="p-4 dark:bg-gray-800 dark:border-gray-700">
-        <h3 className="font-semibold text-sm mb-3 text-gray-700 dark:text-gray-200 flex items-center">
-          <TrendingUp className="h-4 w-4 mr-2 text-orange-500" />
-          Xu hướng
-        </h3>
-        <div className="space-y-3">
-          {trending.map((topic, index) => (
-            <div
-              key={index}
-              className="hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-2 cursor-pointer transition"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                    {topic.tag}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {topic.count.toLocaleString()} bài viết
-                  </p>
+      {/* Sản phẩm nổi bật - Product Slider */}
+      {featuredProducts.length > 0 && (
+        <Card className="p-4 dark:bg-gray-800 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-200 flex items-center">
+              <ShoppingBag className="h-4 w-4 mr-2 text-green-500" />
+              Sản phẩm nổi bật
+            </h3>
+            <Link to="/marketplace">
+              <Button variant="ghost" size="sm" className="text-xs">
+                Xem tất cả
+              </Button>
+            </Link>
+          </div>
+
+          <div className="relative">
+            {/* Product Card */}
+            <div className="overflow-hidden rounded-lg bg-gray-50 dark:bg-gray-900">
+              <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
+                {featuredProducts[currentProductIndex].images[0] ? (
+                  <img
+                    src={getAssetUrl(
+                      featuredProducts[currentProductIndex].images[0]
+                    )}
+                    alt={featuredProducts[currentProductIndex].title}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-gray-400">
+                    Không có ảnh
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3">
+                <h4 className="font-semibold text-sm mb-1 line-clamp-1 dark:text-white">
+                  {featuredProducts[currentProductIndex].title}
+                </h4>
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-2">
+                  {new Intl.NumberFormat("vi-VN", {
+                    style: "currency",
+                    currency: "VND",
+                  }).format(featuredProducts[currentProductIndex].price)}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+                  {featuredProducts[currentProductIndex].description}
+                </p>
+
+                <div className="flex items-center gap-2 pt-2 border-t dark:border-gray-700">
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage
+                      src={getAssetUrl(
+                        featuredProducts[currentProductIndex].seller.avatar
+                      )}
+                      alt={featuredProducts[currentProductIndex].seller.name}
+                    />
+                    <AvatarFallback className="text-xs">
+                      {featuredProducts[currentProductIndex].seller.name
+                        .charAt(0)
+                        .toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                    {featuredProducts[currentProductIndex].seller.name}
+                  </span>
                 </div>
-                <Hash className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
               </div>
             </div>
-          ))}
-        </div>
-      </Card>
+
+            {/* Navigation Buttons */}
+            {featuredProducts.length > 1 && (
+              <>
+                <button
+                  onClick={prevProduct}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-gray-800/90 rounded-full p-1.5 shadow-md hover:bg-white dark:hover:bg-gray-700 transition"
+                >
+                  <ChevronLeft className="h-4 w-4 text-gray-700 dark:text-gray-200" />
+                </button>
+                <button
+                  onClick={nextProduct}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-gray-800/90 rounded-full p-1.5 shadow-md hover:bg-white dark:hover:bg-gray-700 transition"
+                >
+                  <ChevronRight className="h-4 w-4 text-gray-700 dark:text-gray-200" />
+                </button>
+
+                {/* Dots Indicator */}
+                <div className="flex justify-center gap-1 mt-2">
+                  {featuredProducts.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentProductIndex(idx)}
+                      className={`h-1.5 rounded-full transition-all ${
+                        idx === currentProductIndex
+                          ? "w-4 bg-blue-600 dark:bg-blue-400"
+                          : "w-1.5 bg-gray-300 dark:bg-gray-600"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Footer */}
       <div className="px-4 py-2">

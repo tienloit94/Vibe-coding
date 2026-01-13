@@ -18,22 +18,28 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  const allowedTypes =
-    /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip|mp4|avi|mov|wmv|flv|mkv|webm|mp3|wav/;
-  const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase()
-  );
-  const mimetype =
-    allowedTypes.test(file.mimetype) ||
-    file.mimetype.startsWith("video/") ||
-    file.mimetype.startsWith("image/");
+  const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
+  const allowedVideoTypes = /mp4|webm|ogg|mov/; // Browser-friendly video formats only
+  const allowedDocTypes = /pdf|doc|docx|txt|zip/;
+  const allowedAudioTypes = /mp3|wav|ogg/;
 
-  if (mimetype && extname) {
+  const extname = path.extname(file.originalname).toLowerCase().slice(1);
+
+  // Check if it's an allowed type
+  const isImage =
+    allowedImageTypes.test(extname) && file.mimetype.startsWith("image/");
+  const isVideo =
+    allowedVideoTypes.test(extname) && file.mimetype.startsWith("video/");
+  const isDoc = allowedDocTypes.test(extname);
+  const isAudio =
+    allowedAudioTypes.test(extname) && file.mimetype.startsWith("audio/");
+
+  if (isImage || isVideo || isDoc || isAudio) {
     return cb(null, true);
   } else {
     cb(
       new Error(
-        "Invalid file type. Only images, videos, documents, and media files are allowed."
+        `Invalid file type: ${extname}. Supported video formats: MP4, WebM, OGG, MOV`
       )
     );
   }

@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import PasswordReset from "../models/PasswordReset.js";
+import crypto from "crypto";
 import {
   generateToken,
   setTokenCookie,
@@ -273,17 +274,19 @@ export const forgotPassword = async (req, res) => {
       });
     }
 
-    // Generate 6-digit code
+    // Generate 6-digit code and token
     const code = generateResetCode();
+    const token = crypto.randomBytes(32).toString("hex");
 
     // Save reset code to database
     await PasswordReset.create({
       email: email.toLowerCase(),
       code,
+      token,
     });
 
     // Send email
-    const emailResult = await sendPasswordResetCode(email, code);
+    const emailResult = await sendPasswordResetCode(email, code, token);
 
     if (!emailResult.success) {
       return res.status(500).json({
@@ -294,7 +297,11 @@ export const forgotPassword = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Reset code sent to your email",
+      message: emailResult.demo
+        ? `Reset code: ${code} (Demo mode - check server console)`
+        : "Reset code sent to your email",
+      demo: emailResult.demo,
+      ...(emailResult.demo && { code }), // Include code in response for demo mode
     });
   } catch (error) {
     console.error("Forgot password error:", error);
@@ -415,6 +422,111 @@ export const resetPassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to reset password",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Reset password with token (from email link)
+ * @route   POST /api/auth/reset-password-token
+ * @access  Public
+ */
+export const resetPasswordWithToken = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Token and new password are required",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    // Find valid reset token
+    const resetRequest = await PasswordReset.findOne({
+      token,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!resetRequest) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset link",
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email: resetRequest.email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    // Mark token as used
+    resetRequest.used = true;
+    await resetRequest.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
+    });
+  } catch (error) {
+    console.error("Reset password with token error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to reset password",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Verify reset token
+ * @route   GET /api/auth/verify-reset-token/:token
+ * @access  Public
+ */
+export const verifyResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const resetRequest = await PasswordReset.findOne({
+      token,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!resetRequest) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset link",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Token is valid",
+      email: resetRequest.email,
+    });
+  } catch (error) {
+    console.error("Verify reset token error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to verify token",
       error: error.message,
     });
   }

@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import Email from "../models/Email.js";
 
 // Cấu hình email transporter
 const createTransporter = () => {
@@ -28,15 +29,51 @@ const createTransporter = () => {
 /**
  * Gửi mã xác nhận reset password
  */
-export const sendPasswordResetCode = async (email, code) => {
+export const sendPasswordResetCode = async (email, code, token) => {
+  const emailRecord = {
+    to: email,
+    from:
+      process.env.EMAIL_FROM || "Social Network <noreply@socialnetwork.com>",
+    subject: "Mã xác nhận đặt lại mật khẩu",
+    type: "password_reset",
+    metadata: { code, token },
+  };
+
   try {
+    // Demo mode: If no email config, just log the code
+    if (
+      !process.env.SMTP_HOST &&
+      (!process.env.EMAIL_USER ||
+        process.env.EMAIL_USER === "your-email@gmail.com")
+    ) {
+      const resetLink = `${
+        process.env.CLIENT_URL || "http://localhost:5174"
+      }/reset-password/${token}`;
+      console.log("📧 [DEMO MODE] Password reset code for", email, ":", code);
+      console.log("⚠️  Email service not configured. Using demo mode.");
+      console.log("🔑 Use this code:", code);
+      console.log("🔗 Reset link:", resetLink);
+
+      // Log to database
+      await Email.create({
+        ...emailRecord,
+        status: "demo",
+        content: `Code: ${code}, Token: ${token}`,
+        sentAt: new Date(),
+      });
+
+      return { success: true, messageId: "demo-mode", demo: true };
+    }
+
     const transporter = createTransporter();
+    const resetLink = `${
+      process.env.CLIENT_URL || "http://localhost:5174"
+    }/reset-password/${token}`;
 
     const mailOptions = {
-      from:
-        process.env.EMAIL_FROM || "Social Network <noreply@socialnetwork.com>",
+      from: emailRecord.from,
       to: email,
-      subject: "Mã xác nhận đặt lại mật khẩu",
+      subject: emailRecord.subject,
       html: `
         <!DOCTYPE html>
         <html>
@@ -59,9 +96,15 @@ export const sendPasswordResetCode = async (email, code) => {
             </div>
             <div class="content">
               <p>Xin chào,</p>
-              <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình. Sử dụng mã xác nhận bên dưới:</p>
+              <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình. Bạn có thể sử dụng mã xác nhận hoặc click vào link bên dưới:</p>
               
               <div class="code">${code}</div>
+              
+              <p style="text-align: center; margin: 20px 0;">
+                <a href="${resetLink}" style="display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Đặt lại mật khẩu</a>
+              </p>
+              
+              <p style="font-size: 12px; color: #666;">Hoặc copy link này: <a href="${resetLink}">${resetLink}</a></p>
               
               <div class="warning">
                 <strong>⚠️ Lưu ý:</strong>
@@ -84,6 +127,8 @@ export const sendPasswordResetCode = async (email, code) => {
       text: `
         Mã xác nhận đặt lại mật khẩu của bạn là: ${code}
         
+        Hoặc truy cập link: ${resetLink}
+        
         Mã này có hiệu lực trong 15 phút.
         Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
       `,
@@ -91,9 +136,31 @@ export const sendPasswordResetCode = async (email, code) => {
 
     const info = await transporter.sendMail(mailOptions);
     console.log("✅ Email sent:", info.messageId);
+
+    // Log to database
+    await Email.create({
+      ...emailRecord,
+      status: "sent",
+      messageId: info.messageId,
+      content: `Code: ${code}, Link: ${resetLink}`,
+      sentAt: new Date(),
+    });
+
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("❌ Error sending email:", error);
+
+    // Log failed email to database
+    try {
+      await Email.create({
+        ...emailRecord,
+        status: "failed",
+        error: error.message,
+      });
+    } catch (dbError) {
+      console.error("Failed to log email error:", dbError);
+    }
+
     return { success: false, error: error.message };
   }
 };

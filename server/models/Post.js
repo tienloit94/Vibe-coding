@@ -63,6 +63,12 @@ const postSchema = new mongoose.Schema(
         image: {
           type: String, // Comment image URL
         },
+        mentionedUsers: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+          },
+        ],
         likes: [
           {
             type: mongoose.Schema.Types.ObjectId,
@@ -83,6 +89,12 @@ const postSchema = new mongoose.Schema(
             image: {
               type: String,
             },
+            mentionedUsers: [
+              {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+              },
+            ],
             likes: [
               {
                 type: mongoose.Schema.Types.ObjectId,

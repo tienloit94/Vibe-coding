@@ -22,10 +22,18 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const { data } = await axios.post("/api/auth/forgot-password", { email });
-      toast.success(
-        data.message || "Mã xác nhận đã được gửi đến email của bạn"
-      );
+      const { data } = await axios.post("/auth/forgot-password", { email });
+
+      // If demo mode, auto-fill the code
+      if (data.demo && data.code) {
+        setCode(data.code);
+        toast.success(`${data.message}`, { duration: 8000 });
+      } else {
+        toast.success(
+          data.message || "Mã xác nhận đã được gửi đến email của bạn"
+        );
+      }
+
       setStep(2);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Có lỗi xảy ra");
@@ -43,7 +51,7 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const { data } = await axios.post("/api/auth/verify-reset-code", {
+      const { data } = await axios.post("/auth/verify-reset-code", {
         email,
         code,
       });
@@ -75,7 +83,7 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const { data } = await axios.post("/api/auth/reset-password", {
+      const { data } = await axios.post("/auth/reset-password", {
         email,
         code,
         newPassword,

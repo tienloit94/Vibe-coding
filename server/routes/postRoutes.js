@@ -15,6 +15,13 @@ import {
   sharePost,
   getGroupPosts,
 } from "../controllers/postController.js";
+import {
+  getLikedPosts,
+  getSavedPosts,
+  savePost,
+  unsavePost,
+  getSavedCollections,
+} from "../controllers/savedPostController.js";
 import { protect } from "../middleware/auth.js";
 import { upload } from "../middleware/upload.js";
 
@@ -50,9 +57,14 @@ router.post(
 );
 
 router.get("/feed", getNewsFeed);
+router.get("/liked", getLikedPosts);
+router.get("/saved", getSavedPosts);
+router.get("/saved/collections", getSavedCollections);
 router.get("/user/:userId", getUserPosts);
 router.get("/group/:groupId", getGroupPosts);
 router.post("/:postId/like", toggleLike);
+router.post("/:postId/save", savePost);
+router.delete("/:postId/save", unsavePost);
 router.post("/:postId/reaction", addReaction);
 router.delete("/:postId/reaction", removeReaction);
 router.post("/:postId/comment", addComment);

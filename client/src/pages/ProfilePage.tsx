@@ -184,11 +184,15 @@ export default function ProfilePage() {
             <p className="text-gray-500 dark:text-gray-400">
               {displayUser.email}
             </p>
-            {displayUser.bio && (
+            {displayUser.bio ? (
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                 {displayUser.bio}
               </p>
-            )}
+            ) : isOwnProfile ? (
+              <p className="mt-2 text-sm text-gray-400 dark:text-gray-500 italic">
+                Chưa có giới thiệu. Nhấn "Chỉnh sửa" để thêm.
+              </p>
+            ) : null}
             <div className="mt-2 flex space-x-4 text-sm">
               <span className="font-semibold dark:text-gray-200">
                 {posts.length} bài viết
@@ -228,8 +232,12 @@ export default function ProfilePage() {
                       onChange={(e) => setEditBio(e.target.value)}
                       placeholder="Giới thiệu về bạn"
                       rows={4}
+                      maxLength={200}
                       className="dark:bg-gray-700 dark:text-white"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {editBio.length}/200 ký tự
+                    </p>
                   </div>
                   <Button onClick={handleUpdateProfile} className="w-full">
                     Lưu thay đổi
