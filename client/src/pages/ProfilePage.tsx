@@ -142,17 +142,17 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-4">
+    <div className="mx-auto max-w-4xl p-4 min-h-screen bg-radial-ambient">
       {/* Profile Header */}
-      <Card className="mb-6 p-6 dark:bg-gray-800 dark:border-gray-700">
+      <Card className="mb-6 p-6 glass-card rounded-2xl border-primary/10">
         <div className="flex items-center space-x-6">
           <div className="relative">
-            <Avatar className="h-24 w-24">
+            <Avatar className="h-24 w-24 ring-2 ring-primary/50">
               <AvatarImage
                 src={getAssetUrl(displayUser.avatar)}
                 alt={displayUser.name}
               />
-              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-3xl text-white">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-teal-400 text-3xl text-white">
                 {displayUser.name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>

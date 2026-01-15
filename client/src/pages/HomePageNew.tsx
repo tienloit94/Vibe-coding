@@ -17,6 +17,11 @@ import {
   Clock,
   Loader2,
   UserPlus,
+  Bookmark,
+  BookmarkCheck,
+  Globe,
+  Users,
+  Lock,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -28,7 +33,6 @@ import ReactionPicker, {
   ReactionType,
   getReactionSummary,
 } from "@/components/post/ReactionPicker";
-import CreateSocialGroup from "@/components/groups/CreateSocialGroup";
 import StoriesBar from "@/components/story/StoriesBar";
 import TagInput from "@/components/ui/TagInput";
 import socketService from "@/lib/socket";
@@ -56,6 +60,7 @@ import {
 } from "@/components/ui/dialog";
 
 type SortType = "chronological" | "edgerank";
+type VisibilityType = "public" | "friends" | "private";
 
 export default function HomePageNew() {
   const [postContent, setPostContent] = useState("");
@@ -63,6 +68,7 @@ export default function HomePageNew() {
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [videoPreview, setVideoPreview] = useState<string>("");
+  const [visibility, setVisibility] = useState<VisibilityType>("public");
   const [taggedFriends, setTaggedFriends] = useState<
     Array<{ _id: string; name: string; avatar?: string }>
   >([]);
@@ -76,6 +82,7 @@ export default function HomePageNew() {
   const [page, setPage] = useState(1);
   const [hasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +96,9 @@ export default function HomePageNew() {
     addComment,
     addReaction,
     removeReaction,
+    savePost,
+    unsavePost,
+    fetchSavedPosts,
   } = usePostStore();
   const { fetchUsers } = useChatStore();
   const user = useAuthStore((state) => state.user);
@@ -97,6 +107,7 @@ export default function HomePageNew() {
     fetchFeed();
     fetchUsers();
     requestNotificationPermission();
+    loadSavedPosts();
   }, [fetchFeed, fetchUsers]);
 
   // Socket listener for incoming messages
@@ -275,6 +286,7 @@ export default function HomePageNew() {
     try {
       const formData = new FormData();
       formData.append("content", postContent);
+      formData.append("visibility", visibility);
 
       // Add tagged friends
       if (taggedFriends.length > 0) {
@@ -293,6 +305,8 @@ export default function HomePageNew() {
       }
 
       await createPost(formData);
+
+      // Reset all states
       setPostContent("");
       setSelectedImages([]);
       setSelectedVideo(null);
@@ -300,9 +314,17 @@ export default function HomePageNew() {
       setVideoPreview("");
       setTaggedFriends([]);
       setShowTagModal(false);
+      setVisibility("public");
+
+      // Reset file inputs
+      if (imageInputRef.current) imageInputRef.current.value = "";
+      if (videoInputRef.current) videoInputRef.current.value = "";
+
+      console.log("Post created and states reset");
       toast.success("Đã đăng bài!");
-    } catch (error) {
-      toast.error("Đăng bài thất bại");
+    } catch (error: any) {
+      console.error("Error creating post:", error);
+      toast.error(error.response?.data?.error || "Đăng bài thất bại");
     }
   };
 
@@ -439,16 +461,50 @@ export default function HomePageNew() {
     setShowComments({ ...showComments, [postId]: !showComments[postId] });
   };
 
+  const handleSavePost = async (postId: string) => {
+    const isSaved = savedPosts.has(postId);
+
+    try {
+      if (isSaved) {
+        await unsavePost(postId);
+        setSavedPosts((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(postId);
+          return newSet;
+        });
+        toast.success("Đã bỏ lưu bài viết");
+      } else {
+        await savePost(postId);
+        setSavedPosts((prev) => new Set(prev).add(postId));
+        toast.success("Đã lưu bài viết");
+      }
+    } catch (error) {
+      toast.error(
+        isSaved ? "Không thể bỏ lưu bài viết" : "Không thể lưu bài viết"
+      );
+    }
+  };
+
+  const loadSavedPosts = async () => {
+    try {
+      const saved = await fetchSavedPosts();
+      const savedIds = new Set(saved.map((p: any) => p._id));
+      setSavedPosts(savedIds);
+    } catch (error) {
+      console.error("Failed to load saved posts:", error);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-2xl p-4">
       {/* Sort Options */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold dark:text-white">News Feed</h2>
+        <h2 className="text-xl font-bold text-white">News Feed</h2>
         <Select
           value={sortType}
           onValueChange={(value: SortType) => setSortType(value)}
         >
-          <SelectTrigger className="w-48 dark:bg-gray-800">
+          <SelectTrigger className="w-48 glass-pill border-primary/20">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -473,30 +529,15 @@ export default function HomePageNew() {
         <StoriesBar />
       </div>
 
-      {/* Create Group Card */}
-      <Card className="mb-4 p-4 dark:bg-gray-800 dark:border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-lg dark:text-white">
-              Nhóm Cộng Đồng
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Tạo hoặc tham gia nhóm để kết nối với mọi người
-            </p>
-          </div>
-          <CreateSocialGroup />
-        </div>
-      </Card>
-
       {/* Create Post */}
-      <Card className="mb-6 p-4 dark:bg-gray-800 dark:border-gray-700">
+      <Card className="mb-6 p-4 glass-card rounded-2xl border-primary/10">
         <Textarea
           placeholder="Bạn đang nghĩ gì?"
           value={postContent}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
             setPostContent(e.target.value)
           }
-          className="mb-3 min-h-[100px] resize-none border-0 focus-visible:ring-0 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+          className="mb-3 min-h-[100px] resize-none border-0 focus-visible:ring-0 glass-input text-white placeholder-muted"
         />
 
         {/* Tagged Friends Display */}
@@ -505,7 +546,7 @@ export default function HomePageNew() {
             {taggedFriends.map((friend) => (
               <div
                 key={friend._id}
-                className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full text-sm"
+                className="flex items-center gap-1 bg-primary/20 text-primary px-2 py-1 rounded-full text-sm border border-primary/30"
               >
                 <Avatar className="h-5 w-5">
                   <AvatarImage src={getAssetUrl(friend.avatar)} />
@@ -520,7 +561,7 @@ export default function HomePageNew() {
                       taggedFriends.filter((f) => f._id !== friend._id)
                     )
                   }
-                  className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                  className="ml-1 hover:bg-primary/30 rounded-full p-0.5"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -593,9 +634,15 @@ export default function HomePageNew() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => imageInputRef.current?.click()}
+              onClick={() => {
+                console.log(
+                  "Image button clicked, selectedVideo:",
+                  selectedVideo
+                );
+                imageInputRef.current?.click();
+              }}
               disabled={!!selectedVideo}
-              className="dark:text-gray-300 dark:hover:bg-gray-700"
+              className="text-gray-300 hover:bg-primary/20 hover:text-primary"
             >
               <ImageIcon className="mr-2 h-4 w-4" />
               Ảnh
@@ -603,9 +650,15 @@ export default function HomePageNew() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => videoInputRef.current?.click()}
+              onClick={() => {
+                console.log(
+                  "Video button clicked, selectedImages:",
+                  selectedImages.length
+                );
+                videoInputRef.current?.click();
+              }}
               disabled={selectedImages.length > 0}
-              className="dark:text-gray-300 dark:hover:bg-gray-700"
+              className="text-gray-300 hover:bg-primary/20 hover:text-primary"
             >
               <VideoIcon className="mr-2 h-4 w-4" />
               Video
@@ -615,15 +668,15 @@ export default function HomePageNew() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="dark:text-gray-300 dark:hover:bg-gray-700"
+                  className="text-gray-300 hover:bg-primary/20 hover:text-primary"
                 >
                   <UserPlus className="mr-2 h-4 w-4" />
                   Gắn thẻ ({taggedFriends.length})
                 </Button>
               </DialogTrigger>
-              <DialogContent className="dark:bg-gray-800">
+              <DialogContent className="glass-panel border-primary/20">
                 <DialogHeader>
-                  <DialogTitle className="dark:text-white">
+                  <DialogTitle className="text-white">
                     Gắn thẻ bạn bè
                   </DialogTitle>
                 </DialogHeader>
@@ -641,16 +694,46 @@ export default function HomePageNew() {
               </DialogContent>
             </Dialog>
           </div>
-          <Button
-            onClick={handleCreatePost}
-            disabled={
-              !postContent.trim() &&
-              selectedImages.length === 0 &&
-              !selectedVideo
-            }
-          >
-            Đăng
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select
+              value={visibility}
+              onValueChange={(value: VisibilityType) => setVisibility(value)}
+            >
+              <SelectTrigger className="w-[140px] glass-pill border-primary/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">
+                  <div className="flex items-center">
+                    <Globe className="mr-2 h-4 w-4" />
+                    Công khai
+                  </div>
+                </SelectItem>
+                <SelectItem value="friends">
+                  <div className="flex items-center">
+                    <Users className="mr-2 h-4 w-4" />
+                    Bạn bè
+                  </div>
+                </SelectItem>
+                <SelectItem value="private">
+                  <div className="flex items-center">
+                    <Lock className="mr-2 h-4 w-4" />
+                    Chỉ mình tôi
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleCreatePost}
+              disabled={
+                !postContent.trim() &&
+                selectedImages.length === 0 &&
+                !selectedVideo
+              }
+            >
+              Đăng
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -662,8 +745,8 @@ export default function HomePageNew() {
           ))}
         </div>
       ) : sortedPosts.length === 0 ? (
-        <Card className="p-8 text-center dark:bg-gray-800 dark:border-gray-700">
-          <p className="text-gray-500 dark:text-gray-400">
+        <Card className="p-8 text-center glass-card border-primary/10">
+          <p className="text-muted">
             Chưa có bài viết nào. Hãy chia sẻ điều gì đó!
           </p>
         </Card>
@@ -676,7 +759,7 @@ export default function HomePageNew() {
               <Card
                 key={post._id}
                 ref={isLastPost ? lastPostRef : null}
-                className="p-4 dark:bg-gray-800 dark:border-gray-700"
+                className="p-4 glass-card border-primary/10 hover:border-primary/20 transition-all"
               >
                 {/* Post Header */}
                 <div className="mb-3 flex items-center justify-between">
@@ -686,20 +769,20 @@ export default function HomePageNew() {
                         src={post.author.avatar}
                         alt={post.author.name}
                       />
-                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-teal-400 text-white">
                         {post.author.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-semibold dark:text-white">
+                      <p className="font-semibold text-white">
                         {post.author.name}
                         {post.taggedUsers && post.taggedUsers.length > 0 && (
-                          <span className="font-normal text-gray-600 dark:text-gray-400">
+                          <span className="font-normal text-muted">
                             {" "}
                             cùng với{" "}
                             {post.taggedUsers.map((user: any, idx: number) => (
                               <span key={user._id}>
-                                <span className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+                                <span className="font-semibold text-primary hover:underline cursor-pointer">
                                   {user.name}
                                 </span>
                                 {idx < post.taggedUsers.length - 1 && ", "}
@@ -708,7 +791,7 @@ export default function HomePageNew() {
                           </span>
                         )}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-muted">
                         {formatDistanceToNow(new Date(post.createdAt), {
                           addSuffix: true,
                           locale: vi,
@@ -719,7 +802,7 @@ export default function HomePageNew() {
                 </div>
 
                 {/* Post Content */}
-                <p className="mb-3 whitespace-pre-wrap dark:text-gray-200">
+                <p className="mb-3 whitespace-pre-wrap text-gray-100">
                   {post.content}
                 </p>
 
@@ -756,7 +839,7 @@ export default function HomePageNew() {
 
                 {/* Reaction Summary */}
                 {post.reactions && post.reactions.length > 0 && (
-                  <div className="mb-2 flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="mb-2 flex items-center space-x-2 text-sm text-muted">
                     {(() => {
                       const summary = getReactionSummary(post.reactions);
                       return (
@@ -778,7 +861,7 @@ export default function HomePageNew() {
                 )}
 
                 {/* Post Actions */}
-                <div className="flex items-center justify-between border-t dark:border-gray-700 pt-3">
+                <div className="flex items-center justify-between border-t border-primary/10 pt-3">
                   <div className="flex space-x-2">
                     <ReactionPicker
                       onReact={(type) => handleReaction(post._id, type)}
@@ -793,6 +876,7 @@ export default function HomePageNew() {
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleCommentsSection(post._id)}
+                      className="hover:text-primary"
                     >
                       <MessageCircle className="mr-1 h-4 w-4" />
                       {post.comments?.length || 0}
@@ -802,9 +886,27 @@ export default function HomePageNew() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleShare(post._id)}
+                    className="hover:text-primary"
                   >
                     <Share2 className="mr-1 h-4 w-4" />
                     {post.shares?.length || 0}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSavePost(post._id)}
+                    className={
+                      savedPosts.has(post._id)
+                        ? "text-primary hover:text-primary"
+                        : "hover:text-primary"
+                    }
+                  >
+                    {savedPosts.has(post._id) ? (
+                      <BookmarkCheck className="mr-1 h-4 w-4 fill-primary" />
+                    ) : (
+                      <Bookmark className="mr-1 h-4 w-4" />
+                    )}
+                    {savedPosts.has(post._id) ? "Đã lưu" : "Lưu"}
                   </Button>
                 </div>
 
@@ -812,7 +914,7 @@ export default function HomePageNew() {
                 {showComments[post._id] && (
                   <>
                     {post.comments && post.comments.length > 0 && (
-                      <div className="mt-3 space-y-3 border-t dark:border-gray-700 pt-3">
+                      <div className="mt-3 space-y-3 border-t border-primary/10 pt-3">
                         {post.comments.map((comment: any) => (
                           <CommentItem
                             key={comment._id}
@@ -835,10 +937,10 @@ export default function HomePageNew() {
                     )}
 
                     {/* Add Comment */}
-                    <div className="mt-3 flex space-x-2 border-t dark:border-gray-700 pt-3">
+                    <div className="mt-3 flex space-x-2 border-t border-primary/10 pt-3">
                       <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarImage src={user?.avatar} alt={user?.name} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs">
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-teal-400 text-white text-xs">
                           {user?.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -858,7 +960,7 @@ export default function HomePageNew() {
                               handleComment(post._id);
                             }
                           }}
-                          className="flex-1 min-h-[40px] resize-none dark:bg-gray-700 dark:text-white"
+                          className="flex-1 min-h-[40px] resize-none glass-input text-white border-primary/20"
                           rows={1}
                         />
                         <Button
@@ -879,17 +981,15 @@ export default function HomePageNew() {
           {/* Loading More Indicator */}
           {isLoadingMore && (
             <div className="flex justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           )}
 
           {/* No More Posts Message */}
           {!hasMore && sortedPosts.length > 0 && (
-            <Card className="p-6 text-center dark:bg-gray-800 dark:border-gray-700">
-              <p className="text-gray-500 dark:text-gray-400">
-                🎉 Bạn đã xem hết tất cả bài viết!
-              </p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+            <Card className="p-6 text-center glass-card border-primary/10">
+              <p className="text-muted">🎉 Bạn đã xem hết tất cả bài viết!</p>
+              <p className="text-sm text-muted mt-1">
                 Hãy quay lại sau để xem nội dung mới
               </p>
             </Card>

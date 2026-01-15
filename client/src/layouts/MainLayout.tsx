@@ -124,14 +124,14 @@ export default function MainLayout() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen flex-col bg-radial-ambient">
       {/* Top Navbar - Facebook Style - STICKY */}
-      <nav className="sticky top-0 z-50 border-b bg-white dark:bg-gray-800 shadow-sm">
+      <nav className="glass-header sticky top-0 z-50 border-b border-primary/10 shadow-sm">
         <div className="flex h-14 items-center justify-between px-4">
           {/* Left: Logo & Search */}
           <div className="flex items-center space-x-2 flex-1">
             <Link to="/home" className="flex items-center space-x-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-teal-400">
                 <MessageCircle className="h-6 w-6 text-white" />
               </div>
             </Link>
@@ -149,8 +149,8 @@ export default function MainLayout() {
                   to={item.href}
                   className={`relative flex items-center justify-center h-12 px-8 rounded-lg transition-colors ${
                     active
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      ? "text-primary"
+                      : "text-gray-300 hover:bg-primary/10"
                   }`}
                   title={item.name}
                 >
@@ -161,7 +161,7 @@ export default function MainLayout() {
                     </span>
                   )}
                   {active && (
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 dark:bg-blue-400 rounded-t-md"></div>
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-md shadow-glow"></div>
                   )}
                 </Link>
               );
@@ -176,7 +176,7 @@ export default function MainLayout() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  className="h-10 w-10 rounded-full glass-pill hover:bg-primary/20"
                 >
                   <Globe className="h-5 w-5" />
                 </Button>
@@ -194,20 +194,6 @@ export default function MainLayout() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Theme Toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-              onClick={toggleTheme}
-            >
-              {theme === "light" ? (
-                <Moon className="h-5 w-5" />
-              ) : (
-                <Sun className="h-5 w-5" />
-              )}
-            </Button>
 
             {/* Message Dropdown */}
             <MessageDropdown
@@ -233,7 +219,7 @@ export default function MainLayout() {
                       }
                       alt={user?.name}
                     />
-                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-teal-400 text-white">
                       {user?.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -276,7 +262,7 @@ export default function MainLayout() {
         {!hideWidgets && <Sidebar />}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+        <main className="flex-1 overflow-y-auto bg-transparent">
           <Outlet />
         </main>
 
@@ -291,6 +277,19 @@ export default function MainLayout() {
           onClose={() => setMiniChatUserId(null)}
         />
       )}
+
+      {/* Floating Theme Toggle Button - Bottom Right */}
+      <button
+        onClick={toggleTheme}
+        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full glass-pill hover:bg-primary/20 transition-all hover:scale-110 shadow-lg border border-primary/30"
+        title={theme === "light" ? "Chế độ tối" : "Chế độ sáng"}
+      >
+        {theme === "light" ? (
+          <Moon className="h-5 w-5 text-primary" />
+        ) : (
+          <Sun className="h-5 w-5 text-primary" />
+        )}
+      </button>
     </div>
   );
 }

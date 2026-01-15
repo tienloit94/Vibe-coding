@@ -42,13 +42,13 @@ export const createGroup = async (req, res) => {
         memberApprovalRequired === "true" || memberApprovalRequired === true,
     };
 
-    // Handle file uploads
+    // Handle file uploads from Cloudinary
     if (req.files) {
       if (req.files.avatar && req.files.avatar[0]) {
-        groupData.avatar = `/uploads/${req.files.avatar[0].filename}`;
+        groupData.avatar = req.files.avatar[0].path; // Cloudinary URL
       }
       if (req.files.coverImage && req.files.coverImage[0]) {
-        groupData.coverImage = `/uploads/${req.files.coverImage[0].filename}`;
+        groupData.coverImage = req.files.coverImage[0].path; // Cloudinary URL
       }
     }
 
@@ -717,13 +717,13 @@ export const updateGroup = async (req, res) => {
       group.postsEnabled = postsEnabled;
     }
 
-    // Handle file uploads
+    // Handle file uploads from Cloudinary
     if (req.files) {
       if (req.files.avatar && req.files.avatar[0]) {
-        group.avatar = `/uploads/${req.files.avatar[0].filename}`;
+        group.avatar = req.files.avatar[0].path; // Cloudinary URL
       }
       if (req.files.coverImage && req.files.coverImage[0]) {
-        group.coverImage = `/uploads/${req.files.coverImage[0].filename}`;
+        group.coverImage = req.files.coverImage[0].path; // Cloudinary URL
       }
     }
 

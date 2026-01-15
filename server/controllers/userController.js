@@ -158,9 +158,9 @@ export const updateProfile = async (req, res) => {
     if (name) updateData.name = name;
     if (bio !== undefined) updateData.bio = bio;
 
-    // If avatar file is uploaded
+    // If avatar file is uploaded from Cloudinary
     if (req.file) {
-      updateData.avatar = `/uploads/${req.file.filename}`;
+      updateData.avatar = req.file.path; // Cloudinary URL
     }
 
     const user = await User.findByIdAndUpdate(req.user._id, updateData, {
@@ -181,7 +181,7 @@ export const uploadAvatar = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const avatarUrl = `/uploads/${req.file.filename}`;
+    const avatarUrl = req.file.path; // Cloudinary URL
 
     const user = await User.findByIdAndUpdate(
       req.user._id,

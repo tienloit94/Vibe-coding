@@ -7,11 +7,11 @@ export const createProduct = async (req, res) => {
     const { title, description, price, category, condition, location } =
       req.body;
 
-    // Handle uploaded images
+    // Handle uploaded images from Cloudinary
     const images = [];
     if (req.files && req.files.length > 0) {
       req.files.forEach((file) => {
-        images.push(`/uploads/${file.filename}`);
+        images.push(file.path); // Cloudinary URL
       });
     }
 
@@ -141,9 +141,9 @@ export const updateProduct = async (req, res) => {
     if (location !== undefined) product.location = location;
     if (status) product.status = status;
 
-    // Handle new images
+    // Handle new images from Cloudinary
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map((file) => `/uploads/${file.filename}`);
+      const newImages = req.files.map((file) => file.path); // Cloudinary URLs
       product.images = [...product.images, ...newImages];
     }
 

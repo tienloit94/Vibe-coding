@@ -24,6 +24,7 @@ import GroupDetailPage from "./pages/GroupDetailPage";
 import GroupManagementPage from "./pages/GroupManagementPage";
 import SettingsPage from "./pages/SettingsPage";
 import MarketplacePage from "./pages/MarketplacePage";
+import SavedPostsPage from "./pages/SavedPostsPage";
 import MainLayout from "./layouts/MainLayout";
 
 function App() {
@@ -35,10 +36,10 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-radial-ambient">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
+          <p className="mt-4 text-muted">Loading...</p>
         </div>
       </div>
     );
@@ -101,6 +102,7 @@ function App() {
               <Route path="/friends" element={<FriendsPage />} />
               <Route path="/marketplace" element={<MarketplacePage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/saved" element={<SavedPostsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/:userId" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />

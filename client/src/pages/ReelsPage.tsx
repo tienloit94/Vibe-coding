@@ -236,7 +236,7 @@ export default function ReelsPage() {
 
   return (
     <div
-      className="h-screen overflow-y-scroll snap-y snap-mandatory bg-black relative"
+      className="h-screen overflow-y-scroll snap-y snap-mandatory bg-gradient-to-b from-bg to-bg-surface relative"
       onScroll={handleScroll}
       style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
     >
@@ -249,7 +249,7 @@ export default function ReelsPage() {
       {/* Back Button - Fixed at top left */}
       <button
         onClick={() => navigate(-1)}
-        className="fixed top-20 left-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-black/70 backdrop-blur-md border border-white/30 transition-all hover:bg-black/90 hover:scale-110 shadow-lg"
+        className="fixed top-20 left-4 z-50 flex h-12 w-12 items-center justify-center rounded-full glass-pill transition-all hover:bg-primary/20 hover:scale-110 shadow-lg"
       >
         <ArrowLeft className="h-6 w-6 text-white" />
       </button>

@@ -26,6 +26,7 @@ import { vi } from "date-fns/locale";
 import axios from "@/lib/axios";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
+import { getAssetUrl } from "@/lib/config";
 
 interface Story {
   _id: string;
@@ -346,7 +347,7 @@ export default function StoryViewer({
         {currentStory.mediaType === "video" ? (
           <video
             ref={videoRef}
-            src={`http://localhost:5000${currentStory.media}`}
+            src={getAssetUrl(currentStory.media)}
             className="max-h-full max-w-full object-contain"
             autoPlay
             muted
@@ -355,16 +356,13 @@ export default function StoryViewer({
             onEnded={handleNext}
             onError={(e) => {
               console.error("Video error:", e);
-              console.error(
-                "Video src:",
-                `http://localhost:5000${currentStory.media}`
-              );
+              console.error("Video src:", getAssetUrl(currentStory.media));
               toast.error("Không thể phát video");
             }}
           />
         ) : (
           <img
-            src={`http://localhost:5000${currentStory.media}`}
+            src={getAssetUrl(currentStory.media)}
             alt="Story"
             className="max-h-full max-w-full object-contain"
           />

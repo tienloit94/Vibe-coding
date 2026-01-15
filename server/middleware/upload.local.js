@@ -1,32 +1,30 @@
 import multer from "multer";
 import path from "path";
-import cloudinary from "../config/cloudinary.js";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
+import { fileURLToPath } from "url";
 
-// Configure Cloudinary storage
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: "chat-app",
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Configure local storage (backup)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, "../uploads"));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  console.log("🔍 File filter check:", {
-    originalname: file.originalname,
-    mimetype: file.mimetype,
-    size: file.size,
-  });
-
   const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
-  const allowedVideoTypes = /mp4|webm|ogg|mov/; // Browser-friendly video formats only
+  const allowedVideoTypes = /mp4|webm|ogg|mov/;
   const allowedDocTypes = /pdf|doc|docx|txt|zip/;
   const allowedAudioTypes = /mp3|wav|ogg/;
 
   const extname = path.extname(file.originalname).toLowerCase().slice(1);
 
-  // Check if it's an allowed type
   const isImage =
     allowedImageTypes.test(extname) && file.mimetype.startsWith("image/");
   const isVideo =
@@ -35,16 +33,12 @@ const fileFilter = (req, file, cb) => {
   const isAudio =
     allowedAudioTypes.test(extname) && file.mimetype.startsWith("audio/");
 
-  console.log("  ✓ Validation:", { extname, isImage, isVideo, isDoc, isAudio });
-
   if (isImage || isVideo || isDoc || isAudio) {
-    console.log("  ✅ File accepted");
     return cb(null, true);
   } else {
-    console.log("  ❌ File rejected");
     cb(
       new Error(
-        `Invalid file type: ${extname}. Supported video formats: MP4, WebM, OGG, MOV`
+        `Invalid file type: ${extname}. Supported formats: images, videos (MP4, WebM, OGG, MOV), audio, documents`
       )
     );
   }
@@ -54,10 +48,7 @@ const fileFilter = (req, file, cb) => {
 export const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit for videos
+    fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: fileFilter,
 });
-
-// Export cloudinary for other uses
-export { cloudinary };

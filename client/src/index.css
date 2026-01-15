@@ -27,34 +27,87 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --background: 166 44% 6%;
+    --foreground: 180 11% 98%;
+    --card: 165 44% 10%;
+    --card-foreground: 180 11% 98%;
+    --popover: 165 44% 10%;
+    --popover-foreground: 180 11% 98%;
+    --primary: 172 100% 40%;
+    --primary-foreground: 166 44% 6%;
+    --secondary: 164 30% 20%;
+    --secondary-foreground: 180 11% 98%;
+    --muted: 166 37% 67%;
+    --muted-foreground: 166 37% 67%;
+    --accent: 164 30% 20%;
+    --accent-foreground: 180 11% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 164 35% 25%;
+    --input: 164 30% 20%;
+    --ring: 172 100% 40%;
   }
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: rgba(10, 25, 22, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(46, 107, 97, 0.25);
+}
+
+.glass-card {
+  background: rgba(15, 36, 32, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(46, 107, 97, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.glass-header {
+  background: rgba(10, 25, 22, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(46, 107, 97, 0.25);
+}
+
+.glass-input {
+  background: rgba(15, 36, 32, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(46, 107, 97, 0.25);
+}
+
+.glass-pill {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Background Pattern */
+.bg-radial-ambient {
+  background-color: #081612;
+  background-image: radial-gradient(
+      circle at 10% 20%,
+      rgba(0, 204, 170, 0.06) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 90% 80%,
+      rgba(0, 204, 170, 0.04) 0%,
+      transparent 40%
+    );
+  background-attachment: fixed;
 }
 
 /* Custom Scrollbar Styles */
 @layer utilities {
   /* For Webkit browsers (Chrome, Safari, Edge) */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -62,36 +115,29 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(156, 163, 175, 0.5);
-    border-radius: 4px;
+    background: rgba(46, 107, 97, 0.5);
+    border-radius: 10px;
     transition: background 0.2s ease;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(156, 163, 175, 0.7);
-  }
-
-  .dark ::-webkit-scrollbar-thumb {
-    background: rgba(75, 85, 99, 0.5);
-  }
-
-  .dark ::-webkit-scrollbar-thumb:hover {
-    background: rgba(75, 85, 99, 0.7);
+    background: #00ccaa;
   }
 
   /* For Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-  }
-
-  .dark * {
-    scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+    scrollbar-color: rgba(46, 107, 97, 0.5) transparent;
   }
 
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
+  }
+
+  /* Material Icons Alignment */
+  .material-symbols-outlined {
+    vertical-align: middle;
   }
 }
 

@@ -29,7 +29,7 @@ export const createStory = async (req, res) => {
     const story = await Story.create({
       author: req.user._id,
       content: content || "",
-      media: `/uploads/${req.file.filename}`,
+      media: req.file.path, // Cloudinary URL
       mediaType,
       backgroundColor: backgroundColor || "#000000",
       expiresAt,

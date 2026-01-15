@@ -68,6 +68,9 @@ interface PostStore {
   removeReaction: (postId: string) => Promise<void>;
   addComment: (postId: string, content: string) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
+  savePost: (postId: string, collection?: string) => Promise<void>;
+  unsavePost: (postId: string) => Promise<void>;
+  fetchSavedPosts: () => Promise<Post[]>;
 }
 
 export const usePostStore = create<PostStore>((set) => ({
@@ -249,6 +252,44 @@ export const usePostStore = create<PostStore>((set) => ({
       }));
     } catch (error: any) {
       set({ error: error.response?.data?.message || "Failed to delete post" });
+      throw error;
+    }
+  },
+
+  savePost: async (postId, collection = "default") => {
+    try {
+      await axios.post(
+        `${API_URL}/api/posts/${postId}/save`,
+        { collection },
+        { withCredentials: true }
+      );
+    } catch (error: any) {
+      set({ error: error.response?.data?.message || "Failed to save post" });
+      throw error;
+    }
+  },
+
+  unsavePost: async (postId) => {
+    try {
+      await axios.delete(`${API_URL}/api/posts/${postId}/save`, {
+        withCredentials: true,
+      });
+    } catch (error: any) {
+      set({ error: error.response?.data?.message || "Failed to unsave post" });
+      throw error;
+    }
+  },
+
+  fetchSavedPosts: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/posts/saved`, {
+        withCredentials: true,
+      });
+      return response.data.posts;
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Failed to fetch saved posts",
+      });
       throw error;
     }
   },

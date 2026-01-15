@@ -118,7 +118,7 @@ export const sendMessage = async (req, res) => {
     if (file) {
       fileName = file.originalname;
       fileSize = file.size;
-      fileUrl = `/uploads/${file.filename}`;
+      fileUrl = file.path; // Cloudinary URL
 
       // Determine message type from mimetype
       if (file.mimetype.startsWith("image/")) {

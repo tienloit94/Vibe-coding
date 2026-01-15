@@ -1,15 +1,17 @@
-import Note from '../models/Note.js';
+import Note from "../models/Note.js";
 
 // Get user's notes
 export const getNotes = async (req, res) => {
   try {
-    const notes = await Note.find({ user: req.user._id })
-      .sort({ isPinned: -1, createdAt: -1 });
-    
+    const notes = await Note.find({ user: req.user._id }).sort({
+      isPinned: -1,
+      createdAt: -1,
+    });
+
     res.json(notes);
   } catch (error) {
-    console.error('Error getting notes:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error getting notes:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -17,7 +19,7 @@ export const getNotes = async (req, res) => {
 export const createNote = async (req, res) => {
   try {
     const { content } = req.body;
-    const images = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    const images = req.files ? req.files.map((file) => file.path) : []; // Cloudinary URLs
 
     const note = await Note.create({
       user: req.user._id,
@@ -27,8 +29,8 @@ export const createNote = async (req, res) => {
 
     res.status(201).json(note);
   } catch (error) {
-    console.error('Error creating note:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error creating note:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -36,11 +38,11 @@ export const createNote = async (req, res) => {
 export const updateNote = async (req, res) => {
   try {
     const { content, isPinned } = req.body;
-    
+
     const note = await Note.findOne({ _id: req.params.id, user: req.user._id });
-    
+
     if (!note) {
-      return res.status(404).json({ message: 'Note not found' });
+      return res.status(404).json({ message: "Note not found" });
     }
 
     if (content) note.content = content;
@@ -49,23 +51,26 @@ export const updateNote = async (req, res) => {
     await note.save();
     res.json(note);
   } catch (error) {
-    console.error('Error updating note:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error updating note:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 // Delete note
 export const deleteNote = async (req, res) => {
   try {
-    const note = await Note.findOneAndDelete({ _id: req.params.id, user: req.user._id });
-    
+    const note = await Note.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
     if (!note) {
-      return res.status(404).json({ message: 'Note not found' });
+      return res.status(404).json({ message: "Note not found" });
     }
 
-    res.json({ message: 'Note deleted' });
+    res.json({ message: "Note deleted" });
   } catch (error) {
-    console.error('Error deleting note:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error deleting note:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };

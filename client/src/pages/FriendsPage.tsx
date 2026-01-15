@@ -51,15 +51,15 @@ export default function FriendsPage() {
 
   return (
     <div className="mx-auto max-w-4xl p-4">
-      <h1 className="mb-6 text-2xl font-bold dark:text-white">Bạn bè</h1>
+      <h1 className="mb-6 text-2xl font-bold text-white">Bạn bè</h1>
 
       {loading ? (
-        <div className="text-center py-8 dark:text-gray-400">
+        <div className="text-center py-8 text-muted">
           Đang tải danh sách bạn bè...
         </div>
       ) : friends.length === 0 ? (
-        <Card className="p-8 text-center dark:bg-gray-800 dark:border-gray-700">
-          <p className="text-gray-500 dark:text-gray-400">
+        <Card className="p-8 text-center glass-card border-primary/10">
+          <p className="text-muted">
             Chưa có bạn bè. Tìm kiếm người để kết bạn!
           </p>
         </Card>
@@ -68,31 +68,25 @@ export default function FriendsPage() {
           {friends.map((friend) => (
             <Card
               key={friend._id}
-              className="p-4 dark:bg-gray-800 dark:border-gray-700"
+              className="p-4 glass-card border-primary/10 hover:border-primary/20 hover:shadow-glow transition-all"
             >
               <div className="flex flex-col items-center text-center">
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={friend.avatar} alt={friend.name} />
-                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-2xl text-white">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-teal-400 text-2xl text-white">
                     {friend.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <h3 className="mt-3 font-semibold dark:text-white">
-                  {friend.name}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {friend.email}
-                </p>
+                <h3 className="mt-3 font-semibold text-white">{friend.name}</h3>
+                <p className="text-sm text-muted">{friend.email}</p>
                 {friend.isOnline && (
-                  <span className="mt-2 text-xs text-green-600 dark:text-green-400">
-                    ● Online
-                  </span>
+                  <span className="mt-2 text-xs text-primary">● Online</span>
                 )}
                 <div className="mt-4 flex gap-2">
                   <Button
                     size="sm"
                     onClick={() => handleMessage(friend)}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-primary hover:bg-primary/90 shadow-glow"
                   >
                     <MessageCircle className="mr-1 h-4 w-4" />
                     Nhắn tin
@@ -101,7 +95,7 @@ export default function FriendsPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => setFriendToRemove(friend)}
-                    className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-900/20"
+                    className="border-primary/30 hover:bg-red-500/20 hover:text-red-400 hover:border-red-400/50"
                   >
                     <UserMinus className="h-4 w-4" />
                   </Button>
@@ -117,14 +111,14 @@ export default function FriendsPage() {
         open={!!friendToRemove}
         onOpenChange={() => setFriendToRemove(null)}
       >
-        <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
+        <AlertDialogContent className="glass-panel border-primary/20">
           <AlertDialogHeader>
-            <AlertDialogTitle className="dark:text-white">
+            <AlertDialogTitle className="text-white">
               Xóa bạn bè
             </AlertDialogTitle>
-            <AlertDialogDescription className="dark:text-gray-300">
+            <AlertDialogDescription className="text-gray-300">
               Bạn có chắc muốn xóa{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
+              <span className="font-semibold text-white">
                 {friendToRemove?.name}
               </span>{" "}
               khỏi danh sách bạn bè? Hành động này không thể hoàn tác.
@@ -133,7 +127,7 @@ export default function FriendsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel
               disabled={isRemoving}
-              className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+              className="glass-pill border-primary/30 hover:bg-primary/20"
             >
               Hủy
             </AlertDialogCancel>

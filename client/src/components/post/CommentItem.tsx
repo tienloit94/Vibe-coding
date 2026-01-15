@@ -69,16 +69,16 @@ export default function CommentItem({
   return (
     <div className={`flex space-x-2 ${depth > 0 ? "ml-8" : ""}`}>
       <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarImage src={comment.user.avatar} alt={comment.user.name} />
+        <AvatarImage src={comment.user?.avatar} alt={comment.user?.name} />
         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs">
-          {comment.user.name.charAt(0).toUpperCase()}
+          {comment.user?.name?.charAt(0).toUpperCase() || "?"}
         </AvatarFallback>
       </Avatar>
 
       <div className="flex-1">
         <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl px-3 py-2">
           <p className="font-semibold text-sm dark:text-white">
-            {comment.user.name}
+            {comment.user?.name || "Unknown User"}
           </p>
           <p className="text-sm dark:text-gray-200 whitespace-pre-wrap">
             {comment.content}

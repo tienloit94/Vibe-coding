@@ -20,18 +20,27 @@ export const createPost = async (req, res) => {
   try {
     const { content, visibility, taggedUsers, group, isAnonymous } = req.body;
 
-    // Handle uploaded files
+    console.log("📝 Creating post:", {
+      content: content?.substring(0, 50),
+      visibility,
+      hasFiles: !!req.files,
+    });
+
+    // Handle uploaded files from Cloudinary
     const images = [];
     let video = null;
 
     if (req.files && req.files.length > 0) {
+      console.log("📁 Files uploaded:", req.files.length);
       req.files.forEach((file) => {
-        const filePath = `/uploads/${file.filename}`;
+        // Cloudinary returns the secure URL in file.path
+        const fileUrl = file.path;
+        console.log("  - File:", file.mimetype, "URL:", fileUrl);
         // Check if file is video
         if (file.mimetype.startsWith("video/")) {
-          video = filePath;
+          video = fileUrl;
         } else {
-          images.push(filePath);
+          images.push(fileUrl);
         }
       });
     }
@@ -87,12 +96,18 @@ export const createPost = async (req, res) => {
 
     res.status(201).json(populatedPost);
   } catch (error) {
-    console.error("Error creating post:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error creating post:", error);
+    console.error("Error details:", error.message);
+    console.error("Stack:", error.stack);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
   }
 };
 
-// Get news feed (posts from friends and own posts)
+// Get news feed (posts from friends and own posts + public posts)
 export const getNewsFeed = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -100,16 +115,40 @@ export const getNewsFeed = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Get user's friends from User model
-    const user = await User.findById(req.user._id).select("friends");
+    const user = await User.findById(req.user._id).select(
+      "friends blockedUsers"
+    );
     const friendIds = user.friends || [];
+    const blockedIds = user.blockedUsers || [];
+
+    console.log(`🔍 User ${req.user.name} fetching feed:`);
+    console.log(`   Friends count: ${friendIds.length}`);
+    console.log(`   Friend IDs:`, friendIds);
 
     // Add own user ID
     const userIds = [...friendIds, req.user._id];
 
-    // Get posts from friends and self
+    // Build query:
+    // 1. Posts from friends (public or friends visibility)
+    // 2. Own posts (any visibility)
+    // 3. Public posts from everyone (except blocked users)
     const posts = await Post.find({
-      author: { $in: userIds },
-      visibility: { $in: ["public", "friends"] },
+      $or: [
+        // Posts from friends with friends/public visibility
+        {
+          author: { $in: friendIds },
+          visibility: { $in: ["public", "friends"] },
+        },
+        // Own posts (all visibility levels)
+        {
+          author: req.user._id,
+        },
+        // Public posts from non-blocked users
+        {
+          author: { $nin: blockedIds },
+          visibility: "public",
+        },
+      ],
     })
       .populate("author", "name email avatar")
       .populate("taggedUsers", "name avatar")
@@ -122,9 +161,22 @@ export const getNewsFeed = async (req, res) => {
       .limit(limit);
 
     const total = await Post.countDocuments({
-      author: { $in: userIds },
-      visibility: { $in: ["public", "friends"] },
+      $or: [
+        {
+          author: { $in: friendIds },
+          visibility: { $in: ["public", "friends"] },
+        },
+        {
+          author: req.user._id,
+        },
+        {
+          author: { $nin: blockedIds },
+          visibility: "public",
+        },
+      ],
     });
+
+    console.log(`   Posts found: ${posts.length}/${total}`);
 
     res.json({
       posts,
@@ -586,10 +638,10 @@ export const replyToComment = async (req, res) => {
       hasFile: !!req.file,
     });
 
-    // Handle image upload
+    // Handle image upload from Cloudinary
     let imagePath = null;
     if (req.file) {
-      imagePath = `/uploads/${req.file.filename}`;
+      imagePath = req.file.path; // Cloudinary URL
     }
 
     // Extract mentioned users

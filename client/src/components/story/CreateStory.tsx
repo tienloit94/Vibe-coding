@@ -132,7 +132,10 @@ export default function CreateStory({ onSuccess, children }: CreateStoryProps) {
                   </Button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <label
+                  htmlFor="story-file-input"
+                  className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <div className="flex space-x-4 mb-4">
                       <ImageIcon className="h-10 w-10 text-gray-400" />
@@ -146,6 +149,7 @@ export default function CreateStory({ onSuccess, children }: CreateStoryProps) {
                     </p>
                   </div>
                   <Input
+                    id="story-file-input"
                     type="file"
                     className="hidden"
                     accept="image/*,video/*"
