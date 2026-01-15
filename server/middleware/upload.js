@@ -6,8 +6,22 @@ import { CloudinaryStorage } from "multer-storage-cloudinary";
 // Configure Cloudinary storage
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: "chat-app",
+  params: async (req, file) => {
+    // Determine resource type based on mimetype
+    let resourceType = "auto";
+    if (file.mimetype.startsWith("video/")) {
+      resourceType = "video";
+    } else if (file.mimetype.startsWith("image/")) {
+      resourceType = "image";
+    } else if (file.mimetype.startsWith("audio/")) {
+      resourceType = "video"; // Cloudinary treats audio as video
+    }
+
+    return {
+      folder: "chat-app",
+      resource_type: resourceType,
+      allowed_formats: undefined, // Let Cloudinary handle format validation
+    };
   },
 });
 
